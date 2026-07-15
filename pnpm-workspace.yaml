@@ -1,2 +1,5 @@
 allowBuilds:
   esbuild: true
+  lightningcss: true
+minimumReleaseAgeExclude:
+  - nitro-nightly@3.0.1-20260714-164552-c6e6168b
