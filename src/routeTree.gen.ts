@@ -10,33 +10,80 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as V1ModelsRouteImport } from './routes/v1/models'
+import { Route as V1MessagesRouteImport } from './routes/v1/messages'
+import { Route as V1SplatRouteImport } from './routes/v1/$'
+import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completions'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V1ModelsRoute = V1ModelsRouteImport.update({
+  id: '/v1/models',
+  path: '/v1/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1MessagesRoute = V1MessagesRouteImport.update({
+  id: '/v1/messages',
+  path: '/v1/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1SplatRoute = V1SplatRouteImport.update({
+  id: '/v1/$',
+  path: '/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1ChatCompletionsRoute = V1ChatCompletionsRouteImport.update({
+  id: '/v1/chat/completions',
+  path: '/v1/chat/completions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/v1/$': typeof V1SplatRoute
+  '/v1/messages': typeof V1MessagesRoute
+  '/v1/models': typeof V1ModelsRoute
+  '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/v1/$': typeof V1SplatRoute
+  '/v1/messages': typeof V1MessagesRoute
+  '/v1/models': typeof V1ModelsRoute
+  '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/v1/$': typeof V1SplatRoute
+  '/v1/messages': typeof V1MessagesRoute
+  '/v1/models': typeof V1ModelsRoute
+  '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/v1/$' | '/v1/messages' | '/v1/models' | '/v1/chat/completions'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/v1/$' | '/v1/messages' | '/v1/models' | '/v1/chat/completions'
+  id:
+    | '__root__'
+    | '/'
+    | '/v1/$'
+    | '/v1/messages'
+    | '/v1/models'
+    | '/v1/chat/completions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  V1SplatRoute: typeof V1SplatRoute
+  V1MessagesRoute: typeof V1MessagesRoute
+  V1ModelsRoute: typeof V1ModelsRoute
+  V1ChatCompletionsRoute: typeof V1ChatCompletionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,12 +95,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v1/models': {
+      id: '/v1/models'
+      path: '/v1/models'
+      fullPath: '/v1/models'
+      preLoaderRoute: typeof V1ModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/messages': {
+      id: '/v1/messages'
+      path: '/v1/messages'
+      fullPath: '/v1/messages'
+      preLoaderRoute: typeof V1MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/$': {
+      id: '/v1/$'
+      path: '/v1/$'
+      fullPath: '/v1/$'
+      preLoaderRoute: typeof V1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/chat/completions': {
+      id: '/v1/chat/completions'
+      path: '/v1/chat/completions'
+      fullPath: '/v1/chat/completions'
+      preLoaderRoute: typeof V1ChatCompletionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  V1SplatRoute: V1SplatRoute,
+  V1MessagesRoute: V1MessagesRoute,
+  V1ModelsRoute: V1ModelsRoute,
+  V1ChatCompletionsRoute: V1ChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
