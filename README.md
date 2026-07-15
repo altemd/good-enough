@@ -9,6 +9,57 @@ pnpm install
 pnpm dev
 ```
 
+## Local inference gateway
+
+The application exposes a deliberately small compatibility surface through one
+gateway slice:
+
+- `GET /v1/models`
+- `POST /v1/chat/completions`
+- `POST /v1/messages`
+
+Requests are forwarded to `LLAMA_SERVER_URL`, which defaults to
+`http://127.0.0.1:8080`. Only loopback llama-server URLs are accepted. Start
+llama-server with one generation slot and keep it off the external network:
+
+```bash
+llama-server \
+  --model /path/to/model.gguf \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --parallel 1
+```
+
+Copy `.env.example` to `.env` only when you need to change the loopback port.
+The gateway writes one structured metadata event per request to stdout. It does
+not log prompt, completion, tool-argument, credential, or raw streaming data.
+Numeric metadata is extracted only from explicitly allowlisted protocol fields;
+other numbers in an API response are ignored.
+
+### TODO: protocol-compatible error normalization
+
+The gateway currently preserves upstream error statuses, headers, and bodies.
+Its locally generated errors use one temporary generic JSON shape, so they are
+not yet fully compatible with both client protocols. A later checkpoint must:
+
+- Format gateway-originated `/v1/models` and `/v1/chat/completions` errors with
+  the OpenAI error envelope.
+- Format gateway-originated `/v1/messages` errors with Anthropic's top-level
+  `type: "error"` envelope, nested error object, `request_id`, and `request-id`
+  header.
+- Preserve meaningful upstream status codes. Before streaming starts, preserve
+  an upstream error body only when it already conforms to the selected
+  protocol; otherwise translate it using bounded parsing and a sanitized
+  fallback.
+- Handle errors that occur after streaming starts as protocol-specific SSE
+  error events without buffering generated output.
+- Never expose configuration, credentials, prompts, completions, tool
+  arguments, or unrecognized upstream body fields while translating errors.
+
+This is a known compatibility gap, not a claim that the current local error
+bodies exactly reproduce the OpenAI and Anthropic APIs. It does not require an
+SDK dependency unless the later checkpoint demonstrates that one is necessary.
+
 # Building For Production
 
 To build this application for production:
@@ -47,6 +98,7 @@ This project uses [Biome](https://biomejs.dev/) for linting and formatting. The 
 pnpm lint
 pnpm format
 pnpm check
+pnpm typecheck
 ```
 
 
@@ -55,11 +107,11 @@ pnpm check
 This project uses Nitro as a generic server adapter, so it can run on any Node-compatible host.
 
 ```bash
-npm run build
-node dist/server/index.mjs
+pnpm build
+node .output/server/index.mjs
 ```
 
-The build output is a self-contained Node server. To deploy, push the `dist/` directory to your host (Render, Fly.io, your own VPS, etc.) and run the server command above.
+The build output is a self-contained Node server. To deploy, copy the `.output/` directory to your host and run the server command above.
 
 For host-specific presets (Vercel, Netlify, Cloudflare, AWS Lambda, etc.) and tuning, see https://v3.nitro.build/deploy.
 
