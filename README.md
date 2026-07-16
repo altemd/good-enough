@@ -171,6 +171,18 @@ This project uses [Vitest](https://vitest.dev/) for testing. You can run the tes
 pnpm test
 ```
 
+The built-server regression harness compiles the production application, starts
+an isolated loopback fake llama-server, and checks routing, shared capacity,
+stream cancellation, release paths, request IDs, metadata cardinality, and log
+privacy:
+
+```bash
+pnpm test:runtime
+```
+
+Keep this separate from `pnpm test`: it intentionally pays the cost of a full
+Nitro build and child-process lifecycle.
+
 ## Styling
 
 This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
