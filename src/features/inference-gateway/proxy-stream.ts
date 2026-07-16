@@ -1,4 +1,10 @@
 import {
+	type AdmissionSnapshot,
+	createGenerationAdmissionController,
+	type GenerationAdmissionController,
+	type GenerationLease,
+} from "./admission";
+import {
 	createStreamMetadataObserver,
 	type MetadataProtocol,
 	type StreamMetadata,
@@ -45,13 +51,26 @@ export type GatewayOutcome =
 	| "rejected"
 	| "upstream_error";
 
+export type GatewayRejectionReason =
+	| "capacity_exceeded"
+	| "method_not_allowed"
+	| "not_found";
+
+export type GatewayAdmissionStatus = "admitted" | "not_applicable" | "rejected";
+
 export interface InferenceRequestMetadata extends StreamMetadata {
 	event: "inference_request";
 	requestId: string;
 	endpoint: string;
 	startedAt: string;
+	responseStatus: number;
 	upstreamStatus: number | null;
 	outcome: GatewayOutcome;
+	rejectionReason: GatewayRejectionReason | null;
+	admissionStatus: GatewayAdmissionStatus;
+	concurrencyLimit: number | null;
+	activeGenerationsAtAdmission: number | null;
+	queuedGenerationsAtAdmission: number | null;
 	upstreamHeadersMs: number | null;
 	durationMs: number;
 }
@@ -59,12 +78,14 @@ export interface InferenceRequestMetadata extends StreamMetadata {
 export type MetadataRecorder = (metadata: InferenceRequestMetadata) => void;
 
 export interface GatewayEndpoint {
+	readonly kind: "discovery" | "generation";
 	readonly method: "GET" | "POST";
 	readonly path: "/v1/chat/completions" | "/v1/messages" | "/v1/models";
 	readonly protocol: MetadataProtocol;
 }
 
 interface GatewayDependencies {
+	admission?: GenerationAdmissionController;
 	llamaServerUrl?: string;
 	fetch?: typeof globalThis.fetch;
 	record?: MetadataRecorder;
@@ -87,13 +108,22 @@ export async function handleGatewayRequest(
 	const observer = createStreamMetadataObserver("none");
 	let upstreamStatus: number | null = null;
 	let upstreamHeadersMs: number | null = null;
+	let rejectionReason: GatewayRejectionReason | null = null;
+	let admissionStatus: GatewayAdmissionStatus = "not_applicable";
+	let admissionSnapshot: AdmissionSnapshot | null = null;
+	let generationLease: GenerationLease | null = null;
 	let finalized = false;
 
-	const finalize = (outcome: GatewayOutcome, metadataObserver = observer) => {
+	const finalize = (
+		outcome: GatewayOutcome,
+		responseStatus: number,
+		metadataObserver = observer,
+	) => {
 		if (finalized) {
 			return;
 		}
 		finalized = true;
+		generationLease?.release();
 
 		const streamMetadata = metadataObserver.snapshot();
 		const metadata: InferenceRequestMetadata = {
@@ -101,8 +131,16 @@ export async function handleGatewayRequest(
 			requestId,
 			endpoint: endpoint?.path ?? "/v1/*",
 			startedAt,
+			responseStatus,
 			upstreamStatus,
 			outcome,
+			rejectionReason,
+			admissionStatus,
+			concurrencyLimit: admissionSnapshot?.concurrencyLimit ?? null,
+			activeGenerationsAtAdmission:
+				admissionSnapshot?.activeGenerations ?? null,
+			queuedGenerationsAtAdmission:
+				admissionSnapshot?.queuedGenerations ?? null,
 			upstreamHeadersMs,
 			durationMs: elapsed(now, startedAtMs),
 			...streamMetadata,
@@ -118,8 +156,8 @@ export async function handleGatewayRequest(
 	if (endpoint === null || endpoint.method !== request.method) {
 		const allowedMethods = endpoint ? [endpoint.method] : [];
 		const status = endpoint ? 405 : 404;
-		upstreamStatus = status;
-		finalize("rejected");
+		rejectionReason = endpoint ? "method_not_allowed" : "not_found";
+		finalize("rejected", status);
 
 		return gatewayError(
 			status,
@@ -138,14 +176,36 @@ export async function handleGatewayRequest(
 			dependencies.llamaServerUrl ?? DEFAULT_LLAMA_SERVER_URL,
 		);
 	} catch {
-		upstreamStatus = 500;
-		finalize("configuration_error");
+		finalize("configuration_error", 500);
 		return gatewayError(
 			500,
 			"configuration_error",
 			"Inference backend configuration is invalid.",
 			requestId,
 		);
+	}
+
+	if (endpoint.kind === "generation") {
+		const admission =
+			dependencies.admission ?? createGenerationAdmissionController();
+		const decision = admission.tryAcquire();
+		if (!decision.admitted) {
+			admissionStatus = "rejected";
+			admissionSnapshot = decision.snapshot;
+			rejectionReason = "capacity_exceeded";
+			finalize("rejected", 429);
+
+			return gatewayError(
+				429,
+				"capacity_exceeded",
+				"Inference capacity is currently in use. Retry the request later.",
+				requestId,
+			);
+		}
+
+		admissionStatus = "admitted";
+		admissionSnapshot = decision.lease.snapshot;
+		generationLease = decision.lease;
 	}
 
 	const clientSignal = dependencies.clientSignal ?? request.signal;
@@ -190,8 +250,7 @@ export async function handleGatewayRequest(
 	} catch {
 		cleanupAbortListener();
 		if (abortController.signal.aborted) {
-			upstreamStatus = 499;
-			finalize("cancelled");
+			finalize("cancelled", 499);
 			return new Response(null, {
 				status: 499,
 				statusText: "Client Closed Request",
@@ -199,8 +258,7 @@ export async function handleGatewayRequest(
 			});
 		}
 
-		upstreamStatus = 502;
-		finalize("upstream_error");
+		finalize("upstream_error", 502);
 		return gatewayError(
 			502,
 			"gateway_connection_error",
@@ -231,7 +289,7 @@ export async function handleGatewayRequest(
 
 	if (!upstreamResponse.body) {
 		cleanupAbortListener();
-		finalize("completed");
+		finalize("completed", upstreamResponse.status);
 		return new Response(null, {
 			status: upstreamResponse.status,
 			statusText: upstreamResponse.statusText,
@@ -250,7 +308,7 @@ export async function handleGatewayRequest(
 				if (result.done) {
 					metadataObserver.finish(elapsed(now, startedAtMs));
 					cleanupAbortListener();
-					finalize("completed", metadataObserver);
+					finalize("completed", upstreamResponse.status, metadataObserver);
 					controller.close();
 					return;
 				}
@@ -263,7 +321,11 @@ export async function handleGatewayRequest(
 				if (!cancelled) {
 					abortController.abort();
 				}
-				finalize(cancelled ? "cancelled" : "upstream_error", metadataObserver);
+				finalize(
+					cancelled ? "cancelled" : "upstream_error",
+					upstreamResponse.status,
+					metadataObserver,
+				);
 				controller.error(error);
 			}
 		},
@@ -273,7 +335,7 @@ export async function handleGatewayRequest(
 			try {
 				await reader.cancel(reason);
 			} finally {
-				finalize("cancelled", metadataObserver);
+				finalize("cancelled", upstreamResponse.status, metadataObserver);
 			}
 		},
 	});
