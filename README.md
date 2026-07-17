@@ -40,9 +40,11 @@ other numbers in an API response are ignored.
 
 OpenAI chat completions and Anthropic messages share one process-local
 generation slot. While that slot is active, another generation request is
-rejected immediately with `429 capacity_exceeded`; there is no waiting queue
-and no `Retry-After` header because the remaining generation time is unknown.
-`GET /v1/models` remains available while a generation is active.
+rejected immediately with a protocol-compatible `429` capacity error. The
+OpenAI envelope uses the stable code `capacity_exceeded`; the Anthropic
+envelope uses `rate_limit_error`. There is no waiting queue or `Retry-After`
+header because the remaining generation time is unknown. `GET /v1/models`
+remains available while a generation is active.
 
 The slot is held until the proxied response body completes, fails, or is
 cancelled. This includes time spent waiting for a slow client to read the
@@ -66,38 +68,59 @@ Therefore a local capacity rejection has `responseStatus: 429` and
 `upstreamStatus: null`, while a `429` returned by llama-server populates both
 status fields and is not labeled as an admission rejection.
 
-### TODO: protocol-compatible error normalization
+### Protocol-compatible errors
 
-The gateway currently preserves upstream error statuses, headers, and bodies.
-Its locally generated errors use one temporary generic JSON shape, so they are
-not yet fully compatible with both client protocols. A later checkpoint must:
+Gateway-originated errors use the protocol bound to the public endpoint:
 
-- Translate the temporary `capacity_exceeded` response along with every other
-  gateway-originated error; do not normalize only this `429` in isolation.
-- Format gateway-originated `/v1/models` and `/v1/chat/completions` errors with
+- `/v1/models`, `/v1/chat/completions`, and the unknown `/v1/*` catch-all use
   the OpenAI error envelope.
-- Format gateway-originated `/v1/messages` errors with Anthropic's top-level
-  `type: "error"` envelope, nested error object, `request_id`, and `request-id`
-  header.
-- Preserve meaningful upstream status codes. Before streaming starts, preserve
-  an upstream error body only when it already conforms to the selected
-  protocol; otherwise translate it using bounded parsing and a sanitized
-  fallback.
-- Handle errors that occur after streaming starts as protocol-specific SSE
-  error events without buffering generated output.
-- Never expose configuration, credentials, prompts, completions, tool
-  arguments, or unrecognized upstream body fields while translating errors.
+- `/v1/messages` uses Anthropic's top-level `type: "error"` envelope, nested
+  error object, `request_id`, and `request-id` response header.
+- The gateway-owned ID is consistent across each protocol's response header,
+  Anthropic error bodies, upstream forwarding, and metadata. OpenAI responses
+  use `x-request-id`; Anthropic responses use `request-id`.
 
-This is a known compatibility gap, not a claim that the current local error
-bodies exactly reproduce the OpenAI and Anthropic APIs. It does not require an
-SDK dependency unless the later checkpoint demonstrates that one is necessary.
+Upstream error statuses, status text, and meaningful end-to-end headers remain
+intact. Before gateway headers are sent, an upstream error body passes through
+only when it is valid JSON and strictly conforms to the endpoint protocol. The
+gateway reads at most 64 KiB for that check; malformed, oversized, bodyless, or
+nonconforming errors receive a sanitized protocol fallback without exposing
+unrecognized upstream fields.
+
+If an upstream generation SSE body fails after streaming begins, the gateway
+keeps already forwarded chunks unchanged, appends one protocol-specific
+`event: error`, and closes the stream. Client cancellation does not append an
+event because the downstream reader is already gone. Error translation never
+adds prompts, completions, tool arguments, credentials, configuration details,
+or upstream response bodies to metadata or stdout.
+
+### TODO: configurable gateway active limit
+
+Replace the fixed generation limit with trusted server configuration before
+allowing concurrent inference:
+
+- Add a positive-integer `INFERENCE_MAX_ACTIVE_GENERATIONS` setting with a
+  default of `1`; clients must never be able to override it per request.
+- Keep the limit global across OpenAI and Anthropic endpoints and across every
+  model routed through the configured llama-server. A value of `1` therefore
+  permits only one generation to use backend compute at a time even when
+  several models or KV slots remain resident.
+- Allow the gateway limit to be deliberately lower than llama-server's
+  available parallel capacity. This supports multiple cached KV histories while
+  serializing active work for exclusive per-request performance.
+- Reject invalid configuration with a sanitized server error and never allow
+  the configured limit to exceed verified aggregate backend capacity.
+- Continue exposing the effective limit in admission metadata and the private
+  status source. Test the default, invalid values, exact-boundary admission,
+  cancellation, and lease release at limits greater than one.
 
 ### TODO: measured multi-slot slowdown reporting
 
 Before increasing concurrency above one:
 
-- Keep the gateway limit equal to llama-server's configured parallel slot
-  count.
+- Record the gateway active limit separately from each loaded model's
+  llama-server parallel-slot capacity; they model different constraints and do
+  not need to be equal.
 - Add authenticated identity and per-user fairness before describing load as
   “other users.” Until then, report “active generations.”
 - Expose active, queued, and configured slot counts through a private dashboard
@@ -132,6 +155,10 @@ materialization:
 - Require an explicit administrative override for forced reloads.
 - Regression-test alternating model requests so they cannot cause unbounded SSD
   reads, downloads, cache writes, or model churn.
+
+The expected scheduling, model lifecycle, downloaded-model disclaimer, and
+bounded saved-sampling-parameter surface are recorded in
+[`docs/design/inference-scheduling-and-model-lifecycle.md`](docs/design/inference-scheduling-and-model-lifecycle.md).
 
 ### TODO: benchmark-driven simulation mode
 
