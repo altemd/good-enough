@@ -4,11 +4,15 @@ import {
 	type GenerationAdmissionController,
 	type GenerationLease,
 } from "./admission";
+import { createStreamMetadataObserver, type StreamMetadata } from "./metadata";
 import {
-	createStreamMetadataObserver,
-	type MetadataProtocol,
-	type StreamMetadata,
-} from "./metadata";
+	applyProtocolRequestIdHeaders,
+	createProtocolErrorResponse,
+	createProtocolStreamErrorEvent,
+	type ErrorProtocol,
+	type NormalizedUpstreamError,
+	normalizeUpstreamErrorResponse,
+} from "./protocol-errors";
 
 const DEFAULT_LLAMA_SERVER_URL = "http://127.0.0.1:8080";
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -81,7 +85,7 @@ export interface GatewayEndpoint {
 	readonly kind: "discovery" | "generation";
 	readonly method: "GET" | "POST";
 	readonly path: "/v1/chat/completions" | "/v1/messages" | "/v1/models";
-	readonly protocol: MetadataProtocol;
+	readonly protocol: ErrorProtocol;
 }
 
 interface GatewayDependencies {
@@ -105,6 +109,7 @@ export async function handleGatewayRequest(
 	const startedAt = (dependencies.wallClock?.() ?? new Date()).toISOString();
 	const requestId =
 		dependencies.createRequestId?.() ?? globalThis.crypto.randomUUID();
+	const errorProtocol = endpoint?.protocol ?? "openai";
 	const observer = createStreamMetadataObserver("none");
 	let upstreamStatus: number | null = null;
 	let upstreamHeadersMs: number | null = null;
@@ -159,15 +164,17 @@ export async function handleGatewayRequest(
 		rejectionReason = endpoint ? "method_not_allowed" : "not_found";
 		finalize("rejected", status);
 
-		return gatewayError(
+		return createProtocolErrorResponse({
+			protocol: errorProtocol,
 			status,
-			status === 405 ? "method_not_allowed" : "not_found",
-			status === 405
-				? "Method not allowed for this endpoint."
-				: "Endpoint not found.",
+			code: status === 405 ? "method_not_allowed" : "not_found",
+			message:
+				status === 405
+					? "Method not allowed for this endpoint."
+					: "Endpoint not found.",
 			requestId,
 			allowedMethods,
-		);
+		});
 	}
 
 	let llamaOrigin: URL;
@@ -177,12 +184,13 @@ export async function handleGatewayRequest(
 		);
 	} catch {
 		finalize("configuration_error", 500);
-		return gatewayError(
-			500,
-			"configuration_error",
-			"Inference backend configuration is invalid.",
+		return createProtocolErrorResponse({
+			protocol: errorProtocol,
+			status: 500,
+			code: "configuration_error",
+			message: "Inference backend configuration is invalid.",
 			requestId,
-		);
+		});
 	}
 
 	if (endpoint.kind === "generation") {
@@ -195,12 +203,14 @@ export async function handleGatewayRequest(
 			rejectionReason = "capacity_exceeded";
 			finalize("rejected", 429);
 
-			return gatewayError(
-				429,
-				"capacity_exceeded",
-				"Inference capacity is currently in use. Retry the request later.",
+			return createProtocolErrorResponse({
+				protocol: errorProtocol,
+				status: 429,
+				code: "capacity_exceeded",
+				message:
+					"Inference capacity is currently in use. Retry the request later.",
 				requestId,
-			);
+			});
 		}
 
 		admissionStatus = "admitted";
@@ -251,27 +261,75 @@ export async function handleGatewayRequest(
 		cleanupAbortListener();
 		if (abortController.signal.aborted) {
 			finalize("cancelled", 499);
-			return new Response(null, {
+			return createProtocolErrorResponse({
+				protocol: errorProtocol,
 				status: 499,
 				statusText: "Client Closed Request",
-				headers: { "x-request-id": requestId },
+				code: "client_cancelled",
+				message: "Request was cancelled before a response was available.",
+				requestId,
 			});
 		}
 
 		finalize("upstream_error", 502);
-		return gatewayError(
-			502,
-			"gateway_connection_error",
-			"Inference backend is unavailable.",
+		return createProtocolErrorResponse({
+			protocol: errorProtocol,
+			status: 502,
+			code: "gateway_connection_error",
+			message: "Inference backend is unavailable.",
 			requestId,
-		);
+		});
 	}
 
 	const responseHeaders = sanitizeHeaders(
 		upstreamResponse.headers,
 		RESPONSE_HEADERS_TO_STRIP,
 	);
-	responseHeaders.set("x-request-id", requestId);
+	applyProtocolRequestIdHeaders(responseHeaders, endpoint.protocol, requestId);
+
+	if (upstreamResponse.status >= 400) {
+		let normalizedError: NormalizedUpstreamError;
+		try {
+			normalizedError = await normalizeUpstreamErrorResponse({
+				protocol: endpoint.protocol,
+				upstreamResponse,
+				responseHeaders,
+				requestId,
+				signal: abortController.signal,
+			});
+		} catch {
+			cleanupAbortListener();
+			finalize("cancelled", 499);
+			return createProtocolErrorResponse({
+				protocol: endpoint.protocol,
+				status: 499,
+				statusText: "Client Closed Request",
+				code: "client_cancelled",
+				message: "Request was cancelled before a response was available.",
+				requestId,
+			});
+		}
+
+		cleanupAbortListener();
+		if (abortController.signal.aborted) {
+			finalize("cancelled", 499);
+			return createProtocolErrorResponse({
+				protocol: endpoint.protocol,
+				status: 499,
+				statusText: "Client Closed Request",
+				code: "client_cancelled",
+				message: "Request was cancelled before a response was available.",
+				requestId,
+			});
+		}
+
+		finalize(
+			normalizedError.bodyReadFailed ? "upstream_error" : "completed",
+			upstreamResponse.status,
+		);
+		return normalizedError.response;
+	}
+
 	const isEventStream = responseHeaders
 		.get("content-type")
 		?.toLowerCase()
@@ -298,7 +356,9 @@ export async function handleGatewayRequest(
 	}
 
 	const metadataObserver = createStreamMetadataObserver(
-		isEventStream ? endpoint.protocol : "none",
+		isEventStream && endpoint.kind === "generation"
+			? endpoint.protocol
+			: "none",
 	);
 	const reader = upstreamResponse.body.getReader();
 	const responseBody = new ReadableStream<Uint8Array>({
@@ -326,6 +386,11 @@ export async function handleGatewayRequest(
 					upstreamResponse.status,
 					metadataObserver,
 				);
+				if (!cancelled && isEventStream && endpoint.kind === "generation") {
+					controller.enqueue(createProtocolStreamErrorEvent(endpoint.protocol));
+					controller.close();
+					return;
+				}
 				controller.error(error);
 			}
 		},
@@ -382,27 +447,6 @@ function sanitizeHeaders(
 		headers.delete(header);
 	}
 	return headers;
-}
-
-function gatewayError(
-	status: number,
-	type: string,
-	message: string,
-	requestId: string,
-	allowedMethods: ReadonlyArray<string> = [],
-): Response {
-	const headers = new Headers({
-		"content-type": "application/json; charset=utf-8",
-		"x-request-id": requestId,
-	});
-	if (allowedMethods.length > 0) {
-		headers.set("allow", allowedMethods.join(", "));
-	}
-
-	return new Response(JSON.stringify({ error: { type, message } }), {
-		status,
-		headers,
-	});
 }
 
 function elapsed(now: () => number, startedAtMs: number): number {

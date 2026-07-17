@@ -32,7 +32,7 @@ const ENDPOINTS = {
 		kind: "discovery",
 		method: "GET",
 		path: "/v1/models",
-		protocol: "none",
+		protocol: "openai",
 	},
 } as const satisfies Record<string, GatewayEndpoint>;
 
@@ -82,6 +82,9 @@ describe("endpoint policies", () => {
 		expect(response.status).toBe(201);
 		expect(response.headers.get("x-upstream")).toBe("preserved");
 		expect(response.headers.get("x-request-id")).toBe("request-1");
+		expect(response.headers.get("request-id")).toBe(
+			path === "messages" ? "request-1" : null,
+		);
 		expect(fetchMock.mock).toHaveBeenCalledTimes(1);
 		expect(upstreamRequest?.url).toBe(
 			`http://127.0.0.1:8080/v1/${path}?trace=1`,
@@ -115,10 +118,23 @@ describe("endpoint policies", () => {
 		const response = await handleGatewayRequest(
 			new Request("https://gateway.example/v1/slots"),
 			null,
-			{ fetch: fetchMock.fetch, record: metadata.record },
+			{
+				fetch: fetchMock.fetch,
+				record: metadata.record,
+				createRequestId: () => "unknown-request",
+			},
 		);
 
 		expect(response.status).toBe(404);
+		expect(response.headers.get("x-request-id")).toBe("unknown-request");
+		expect(await response.json()).toEqual({
+			error: {
+				message: "Endpoint not found.",
+				type: "invalid_request_error",
+				param: null,
+				code: "not_found",
+			},
+		});
 		expect(fetchMock.mock).not.toHaveBeenCalled();
 		expect(metadata.events).toHaveLength(1);
 		expect(metadata.events[0]).toMatchObject({
@@ -136,11 +152,25 @@ describe("endpoint policies", () => {
 		const response = await handleGatewayRequest(
 			new Request("https://gateway.example/v1/messages", { method: "GET" }),
 			ENDPOINTS.messages,
-			{ fetch: fetchMock.fetch, record: metadata.record },
+			{
+				fetch: fetchMock.fetch,
+				record: metadata.record,
+				createRequestId: () => "method-request",
+			},
 		);
 
 		expect(response.status).toBe(405);
 		expect(response.headers.get("allow")).toBe("POST");
+		expect(response.headers.get("x-request-id")).toBe("method-request");
+		expect(response.headers.get("request-id")).toBe("method-request");
+		expect(await response.json()).toEqual({
+			type: "error",
+			error: {
+				type: "invalid_request_error",
+				message: "Method not allowed for this endpoint.",
+			},
+			request_id: "method-request",
+		});
 		expect(fetchMock.mock).not.toHaveBeenCalled();
 		expect(metadata.events[0]).toMatchObject({
 			responseStatus: 405,
@@ -190,12 +220,17 @@ describe("generation admission", () => {
 
 		expect(busy.status).toBe(429);
 		expect(busy.headers.get("retry-after")).toBeNull();
+		const busyRequestId = busy.headers.get("x-request-id");
+		expect(busyRequestId).toBeTruthy();
+		expect(busy.headers.get("request-id")).toBe(busyRequestId);
 		expect(await busy.json()).toEqual({
+			type: "error",
 			error: {
-				type: "capacity_exceeded",
+				type: "rate_limit_error",
 				message:
 					"Inference capacity is currently in use. Retry the request later.",
 			},
+			request_id: busyRequestId,
 		});
 		expect(await models.text()).toBe('{"data":[]}');
 		expect(fetchMock.mock).toHaveBeenCalledTimes(2);
@@ -455,8 +490,71 @@ describe("shared streaming transport", () => {
 		await response.text();
 	});
 
-	it.each([429, 503])("preserves upstream %s responses", async (status) => {
-		const errorBody = `upstream-${status}`;
+	it.each([
+		[
+			"chat/completions",
+			ENDPOINTS["chat/completions"],
+			'data: {"choices":[{"delta":{"content":"partial-openai"}}]}\n\n',
+			'event: error\ndata: {"error":{"message":"Inference stream ended unexpectedly.","type":"server_error","param":null,"code":"upstream_stream_error"}}\n\n',
+		],
+		[
+			"messages",
+			ENDPOINTS.messages,
+			'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"partial-anthropic"}}\n\n',
+			'event: error\ndata: {"type":"error","error":{"type":"api_error","message":"Inference stream ended unexpectedly."}}\n\n',
+		],
+	] as const)("appends a protocol error when the %s SSE body fails", async (path, endpoint, successfulFrame, expectedErrorFrame) => {
+		const admission = createGenerationAdmissionController();
+		const metadata = createRecorder();
+		let pullCount = 0;
+		const fetchMock = createFetchMock(
+			async () =>
+				new Response(
+					new ReadableStream<Uint8Array>({
+						pull(controller) {
+							pullCount += 1;
+							if (pullCount === 1) {
+								controller.enqueue(encoder.encode(successfulFrame));
+								return;
+							}
+							controller.error(new Error("PRIVATE_UPSTREAM_STREAM_FAILURE"));
+						},
+					}),
+					{ headers: { "content-type": "text/event-stream" } },
+				),
+		);
+		const response = await handleGatewayRequest(
+			postRequest(path, "{}"),
+			endpoint,
+			{
+				admission,
+				fetch: fetchMock.fetch,
+				record: metadata.record,
+			},
+		);
+
+		const body = await response.text();
+
+		expect(body).toBe(`${successfulFrame}\n\n${expectedErrorFrame}`);
+		expect(body).not.toContain("PRIVATE_UPSTREAM_STREAM_FAILURE");
+		expect(metadata.events).toHaveLength(1);
+		expect(metadata.events[0]).toMatchObject({
+			outcome: "upstream_error",
+			responseStatus: 200,
+			upstreamStatus: 200,
+			admissionStatus: "admitted",
+		});
+		expect(metadata.events[0]?.ttftMs).not.toBeNull();
+		expect(JSON.stringify(metadata.events[0])).not.toContain(
+			"PRIVATE_UPSTREAM_STREAM_FAILURE",
+		);
+		expect(admission.snapshot().activeGenerations).toBe(0);
+	});
+
+	it.each([
+		429, 503,
+	])("sanitizes nonconforming upstream %s responses", async (status) => {
+		const errorBody = `PRIVATE_UPSTREAM_ERROR_${status}`;
 		const fetchMock = createFetchMock(
 			async () =>
 				new Response(errorBody, {
@@ -476,13 +574,116 @@ describe("shared streaming transport", () => {
 
 		expect(response.status).toBe(status);
 		expect(response.headers.get("retry-after")).toBe("7");
-		expect(await response.text()).toBe(errorBody);
+		const responseBody = await response.text();
+		expect(responseBody).toContain("Inference backend returned an error.");
+		expect(responseBody).not.toContain(errorBody);
 		expect(metadata.events[0]).toMatchObject({
 			responseStatus: status,
 			upstreamStatus: status,
 			rejectionReason: null,
 			admissionStatus: "admitted",
 		});
+		expect(JSON.stringify(metadata.events[0])).not.toContain(errorBody);
+	});
+
+	it("sanitizes a failed upstream error body and releases capacity", async () => {
+		const admission = createGenerationAdmissionController();
+		const metadata = createRecorder();
+		const response = await handleGatewayRequest(
+			postRequest("chat/completions", "{}"),
+			ENDPOINTS["chat/completions"],
+			{
+				admission,
+				fetch: createFetchMock(
+					async () =>
+						new Response(
+							new ReadableStream<Uint8Array>({
+								pull(controller) {
+									controller.error(new Error("PRIVATE_ERROR_BODY_FAILURE"));
+								},
+							}),
+							{ status: 503, headers: { "content-type": "application/json" } },
+						),
+				).fetch,
+				record: metadata.record,
+			},
+		);
+		const body = await response.text();
+
+		expect(response.status).toBe(503);
+		expect(body).toContain("Inference backend returned an error.");
+		expect(body).not.toContain("PRIVATE_ERROR_BODY_FAILURE");
+		expect(metadata.events).toHaveLength(1);
+		expect(metadata.events[0]).toMatchObject({
+			outcome: "upstream_error",
+			responseStatus: 503,
+			upstreamStatus: 503,
+			admissionStatus: "admitted",
+		});
+		expect(admission.snapshot().activeGenerations).toBe(0);
+	});
+
+	it("passes through a conforming OpenAI upstream error", async () => {
+		const errorBody = JSON.stringify({
+			error: {
+				message: "Known upstream error.",
+				type: "server_error",
+				param: null,
+				code: "server_error",
+			},
+		});
+		const response = await handleGatewayRequest(
+			postRequest("chat/completions", "{}"),
+			ENDPOINTS["chat/completions"],
+			{
+				fetch: createFetchMock(
+					async () =>
+						new Response(errorBody, {
+							status: 503,
+							statusText: "Backend Busy",
+							headers: {
+								"content-type": "application/json",
+								"retry-after": "5",
+							},
+						}),
+				).fetch,
+			},
+		);
+
+		expect(response.status).toBe(503);
+		expect(response.statusText).toBe("Backend Busy");
+		expect(response.headers.get("retry-after")).toBe("5");
+		expect(await response.text()).toBe(errorBody);
+	});
+
+	it("passes through Anthropic errors only with the gateway request ID", async () => {
+		const errorBody = JSON.stringify({
+			type: "error",
+			error: { type: "overloaded_error", message: "Known overload." },
+			request_id: "anthropic-upstream-request",
+		});
+		const response = await handleGatewayRequest(
+			postRequest("messages", "{}"),
+			ENDPOINTS.messages,
+			{
+				createRequestId: () => "anthropic-upstream-request",
+				fetch: createFetchMock(
+					async () =>
+						new Response(errorBody, {
+							status: 529,
+							headers: { "content-type": "application/json" },
+						}),
+				).fetch,
+			},
+		);
+
+		expect(response.headers.get("x-request-id")).toBe(
+			"anthropic-upstream-request",
+		);
+		expect(response.headers.get("request-id")).toBe(
+			"anthropic-upstream-request",
+		);
+		expect(await response.text()).toBe(errorBody);
 	});
 
 	it("returns a sanitized 502 when llama-server is unavailable", async () => {
@@ -494,13 +695,24 @@ describe("shared streaming transport", () => {
 		const response = await handleGatewayRequest(
 			postRequest("messages", "{}"),
 			ENDPOINTS.messages,
-			{ admission, fetch: fetchMock.fetch, record: metadata.record },
+			{
+				admission,
+				fetch: fetchMock.fetch,
+				record: metadata.record,
+				createRequestId: () => "connection-request",
+			},
 		);
-		const body = await response.text();
 
 		expect(response.status).toBe(502);
-		expect(body).toContain("Inference backend is unavailable.");
-		expect(body).not.toContain("connection details");
+		expect(response.headers.get("request-id")).toBe("connection-request");
+		expect(await response.json()).toEqual({
+			type: "error",
+			error: {
+				type: "api_error",
+				message: "Inference backend is unavailable.",
+			},
+			request_id: "connection-request",
+		});
 		expect(metadata.events).toHaveLength(1);
 		expect(metadata.events[0]).toMatchObject({
 			outcome: "upstream_error",
@@ -520,12 +732,23 @@ describe("shared streaming transport", () => {
 		const response = await handleGatewayRequest(
 			new Request("https://gateway.example/v1/models"),
 			ENDPOINTS.models,
-			{ fetch: fetchMock.fetch, llamaServerUrl },
+			{
+				fetch: fetchMock.fetch,
+				llamaServerUrl,
+				createRequestId: () => "models-configuration-request",
+			},
 		);
 
 		expect(response.status).toBe(500);
 		expect(fetchMock.mock).not.toHaveBeenCalled();
-		expect(await response.text()).not.toContain(llamaServerUrl);
+		expect(await response.json()).toEqual({
+			error: {
+				message: "Inference backend configuration is invalid.",
+				type: "server_error",
+				param: null,
+				code: "configuration_error",
+			},
+		});
 	});
 
 	it("validates generation configuration before acquiring capacity", async () => {
@@ -540,10 +763,22 @@ describe("shared streaming transport", () => {
 				fetch: fetchMock.fetch,
 				llamaServerUrl: "http://192.168.1.20:8080",
 				record: metadata.record,
+				createRequestId: () => "messages-configuration-request",
 			},
 		);
 
 		expect(response.status).toBe(500);
+		expect(response.headers.get("request-id")).toBe(
+			"messages-configuration-request",
+		);
+		expect(await response.json()).toEqual({
+			type: "error",
+			error: {
+				type: "api_error",
+				message: "Inference backend configuration is invalid.",
+			},
+			request_id: "messages-configuration-request",
+		});
 		expect(fetchMock.mock).not.toHaveBeenCalled();
 		expect(admission.snapshot().activeGenerations).toBe(0);
 		expect(metadata.events).toHaveLength(1);
@@ -587,6 +822,17 @@ describe("shared streaming transport", () => {
 		const response = await responsePromise;
 
 		expect(response.status).toBe(499);
+		const requestId = response.headers.get("x-request-id");
+		expect(requestId).toBeTruthy();
+		expect(response.headers.get("request-id")).toBe(requestId);
+		expect(await response.json()).toEqual({
+			type: "error",
+			error: {
+				type: "invalid_request_error",
+				message: "Request was cancelled before a response was available.",
+			},
+			request_id: requestId,
+		});
 		expect(upstreamSignal?.aborted).toBe(true);
 		expect(metadata.events).toHaveLength(1);
 		expect(metadata.events[0]).toMatchObject({

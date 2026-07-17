@@ -7,6 +7,7 @@ const HOST = "127.0.0.1";
 const PRIVATE_PROMPT = "private-prompt-smoke-sentinel";
 const PRIVATE_COMPLETION = "private-completion-smoke-sentinel";
 const PRIVATE_TOOL_ARGUMENT = "private-tool-argument-smoke-sentinel";
+const PRIVATE_UPSTREAM_ERROR = "private-upstream-error-smoke-sentinel";
 const UNRELATED_NUMBER = "987654321";
 const REQUEST_BODY = JSON.stringify({
 	model: "smoke-model",
@@ -45,6 +46,14 @@ const mockServer = createServer((request, response) => {
 	mockState.generationPaths.push(request.url);
 	const generationNumber = mockState.generationPaths.length;
 	const isOpenAi = request.url === "/v1/chat/completions";
+	if (request.headers["x-smoke-upstream-error"] === "1") {
+		response.writeHead(503, {
+			"content-type": "application/json",
+			"retry-after": "4",
+		});
+		response.end(JSON.stringify({ private_detail: PRIVATE_UPSTREAM_ERROR }));
+		return;
+	}
 	const shouldRemainOpen = generationNumber <= 2;
 	let contentTimer;
 
@@ -160,6 +169,14 @@ try {
 		await fetch(`${applicationOrigin}/v1/slots`),
 	);
 	assert.equal(unknownResponse.status, 404);
+	assert.deepEqual(await unknownResponse.json(), {
+		error: {
+			message: "Endpoint not found.",
+			type: "invalid_request_error",
+			param: null,
+			code: "not_found",
+		},
+	});
 	assert.equal(mockState.generationPaths.length, 0);
 
 	const wrongMethodResponse = recordResponse(
@@ -167,6 +184,19 @@ try {
 	);
 	assert.equal(wrongMethodResponse.status, 405);
 	assert.equal(wrongMethodResponse.headers.get("allow"), "POST");
+	const wrongMethodRequestId = wrongMethodResponse.headers.get("x-request-id");
+	assert.equal(
+		wrongMethodResponse.headers.get("request-id"),
+		wrongMethodRequestId,
+	);
+	assert.deepEqual(await wrongMethodResponse.json(), {
+		type: "error",
+		error: {
+			type: "invalid_request_error",
+			message: "Method not allowed for this endpoint.",
+		},
+		request_id: wrongMethodRequestId,
+	});
 	assert.equal(mockState.generationPaths.length, 0);
 
 	const openAiResponse = recordResponse(
@@ -191,12 +221,16 @@ try {
 	);
 	assert.equal(busyResponse.status, 429);
 	assert.equal(busyResponse.headers.has("retry-after"), false);
+	const busyRequestId = busyResponse.headers.get("x-request-id");
+	assert.equal(busyResponse.headers.get("request-id"), busyRequestId);
 	assert.deepEqual(await busyResponse.json(), {
+		type: "error",
 		error: {
-			type: "capacity_exceeded",
+			type: "rate_limit_error",
 			message:
 				"Inference capacity is currently in use. Retry the request later.",
 		},
+		request_id: busyRequestId,
 	});
 	assert.deepEqual(mockState.generationPaths, ["/v1/chat/completions"]);
 
@@ -214,6 +248,10 @@ try {
 		}),
 	);
 	assert.equal(anthropicResponse.status, 200);
+	assert.equal(
+		anthropicResponse.headers.get("request-id"),
+		anthropicResponse.headers.get("x-request-id"),
+	);
 	assert.deepEqual(mockState.generationPaths, [
 		"/v1/chat/completions",
 		"/v1/messages",
@@ -242,16 +280,37 @@ try {
 		}),
 	);
 	assert.equal(completedAnthropicResponse.status, 200);
+	assert.equal(
+		completedAnthropicResponse.headers.get("request-id"),
+		completedAnthropicResponse.headers.get("x-request-id"),
+	);
 	assert.match(await completedAnthropicResponse.text(), /message_stop/);
+
+	const upstreamErrorResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/chat/completions`, {
+			body: REQUEST_BODY,
+			headers: {
+				"content-type": "application/json",
+				"x-smoke-upstream-error": "1",
+			},
+			method: "POST",
+		}),
+	);
+	assert.equal(upstreamErrorResponse.status, 503);
+	assert.equal(upstreamErrorResponse.headers.get("retry-after"), "4");
+	const upstreamErrorBody = await upstreamErrorResponse.text();
+	assert.match(upstreamErrorBody, /Inference backend returned an error/);
+	assert.equal(upstreamErrorBody.includes(PRIVATE_UPSTREAM_ERROR), false);
 
 	assert.deepEqual(mockState.generationPaths, [
 		"/v1/chat/completions",
 		"/v1/messages",
 		"/v1/chat/completions",
 		"/v1/messages",
+		"/v1/chat/completions",
 	]);
 
-	await waitFor(() => readMetadataEvents(applicationStdout).length === 8);
+	await waitFor(() => readMetadataEvents(applicationStdout).length === 9);
 	const metadataEvents = readMetadataEvents(applicationStdout);
 	assert.equal(metadataEvents.length, requestIds.length);
 	assert.equal(new Set(requestIds).size, requestIds.length);
@@ -278,6 +337,7 @@ try {
 		PRIVATE_PROMPT,
 		PRIVATE_COMPLETION,
 		PRIVATE_TOOL_ARGUMENT,
+		PRIVATE_UPSTREAM_ERROR,
 		UNRELATED_NUMBER,
 	]) {
 		assert.equal(

@@ -13,7 +13,7 @@ const MODELS_ENDPOINT = {
 	kind: "discovery",
 	method: "GET",
 	path: "/v1/models",
-	protocol: "none",
+	protocol: "openai", // v1/models defaults to openai spec, TODO: discovery with anthropic spec
 } as const satisfies GatewayEndpoint;
 
 const OPENAI_CHAT_COMPLETIONS_ENDPOINT = {
