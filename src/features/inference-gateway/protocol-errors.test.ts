@@ -47,7 +47,7 @@ describe("protocol error responses", () => {
 			requestId: "request-anthropic",
 		});
 
-		expect(response.headers.get("x-request-id")).toBe("request-anthropic");
+		expect(response.headers.get("x-request-id")).toBeNull();
 		expect(response.headers.get("request-id")).toBe("request-anthropic");
 		expect(response.headers.get("retry-after")).toBeNull();
 		expect(await response.json()).toEqual({

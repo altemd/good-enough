@@ -81,7 +81,9 @@ describe("endpoint policies", () => {
 		expect(await response.text()).toBe("upstream-response");
 		expect(response.status).toBe(201);
 		expect(response.headers.get("x-upstream")).toBe("preserved");
-		expect(response.headers.get("x-request-id")).toBe("request-1");
+		expect(response.headers.get("x-request-id")).toBe(
+			path === "messages" ? null : "request-1",
+		);
 		expect(response.headers.get("request-id")).toBe(
 			path === "messages" ? "request-1" : null,
 		);
@@ -161,7 +163,7 @@ describe("endpoint policies", () => {
 
 		expect(response.status).toBe(405);
 		expect(response.headers.get("allow")).toBe("POST");
-		expect(response.headers.get("x-request-id")).toBe("method-request");
+		expect(response.headers.get("x-request-id")).toBeNull();
 		expect(response.headers.get("request-id")).toBe("method-request");
 		expect(await response.json()).toEqual({
 			type: "error",
@@ -220,8 +222,9 @@ describe("generation admission", () => {
 
 		expect(busy.status).toBe(429);
 		expect(busy.headers.get("retry-after")).toBeNull();
-		const busyRequestId = busy.headers.get("x-request-id");
+		const busyRequestId = busy.headers.get("request-id");
 		expect(busyRequestId).toBeTruthy();
+		expect(busy.headers.get("x-request-id")).toBeNull();
 		expect(busy.headers.get("request-id")).toBe(busyRequestId);
 		expect(await busy.json()).toEqual({
 			type: "error",
@@ -677,9 +680,7 @@ describe("shared streaming transport", () => {
 			},
 		);
 
-		expect(response.headers.get("x-request-id")).toBe(
-			"anthropic-upstream-request",
-		);
+		expect(response.headers.get("x-request-id")).toBeNull();
 		expect(response.headers.get("request-id")).toBe(
 			"anthropic-upstream-request",
 		);
@@ -704,6 +705,7 @@ describe("shared streaming transport", () => {
 		);
 
 		expect(response.status).toBe(502);
+		expect(response.headers.get("x-request-id")).toBeNull();
 		expect(response.headers.get("request-id")).toBe("connection-request");
 		expect(await response.json()).toEqual({
 			type: "error",
@@ -822,8 +824,9 @@ describe("shared streaming transport", () => {
 		const response = await responsePromise;
 
 		expect(response.status).toBe(499);
-		const requestId = response.headers.get("x-request-id");
+		const requestId = response.headers.get("request-id");
 		expect(requestId).toBeTruthy();
+		expect(response.headers.get("x-request-id")).toBeNull();
 		expect(response.headers.get("request-id")).toBe(requestId);
 		expect(await response.json()).toEqual({
 			type: "error",

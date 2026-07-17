@@ -4,7 +4,6 @@ export function applyAnthropicRequestIdHeaders(
 	headers: Headers,
 	requestId: string,
 ): void {
-	headers.set("x-request-id", requestId);
 	headers.set("request-id", requestId);
 }
 
@@ -75,7 +74,7 @@ function hasNonEmptyString(value: unknown): value is string {
 }
 
 /**
- * Checks whether an unknown runtime value is a non-array object and returns as a `JsonObject`, `null` otherwise. 
+ * Checks whether an unknown runtime value is a non-array object and returns as a `JsonObject`, `null` otherwise.
  */
 function asJsonObject(value: unknown): JsonObject | null {
 	return typeof value === "object" && value !== null && !Array.isArray(value)

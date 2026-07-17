@@ -152,9 +152,17 @@ try {
 	});
 
 	const requestIds = [];
-	const recordResponse = (response) => {
-		const requestId = response.headers.get("x-request-id");
-		assert.ok(requestId, "gateway response must include X-Request-Id");
+	const recordResponse = (response, protocol = "openai") => {
+		const requestIdHeader =
+			protocol === "anthropic" ? "request-id" : "x-request-id";
+		const requestId = response.headers.get(requestIdHeader);
+		assert.ok(
+			requestId,
+			`gateway ${protocol} response must include ${requestIdHeader}`,
+		);
+		if (protocol === "anthropic") {
+			assert.equal(response.headers.get("x-request-id"), null);
+		}
 		requestIds.push(requestId);
 		return response;
 	};
@@ -181,14 +189,11 @@ try {
 
 	const wrongMethodResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/messages`, { method: "PUT" }),
+		"anthropic",
 	);
 	assert.equal(wrongMethodResponse.status, 405);
 	assert.equal(wrongMethodResponse.headers.get("allow"), "POST");
-	const wrongMethodRequestId = wrongMethodResponse.headers.get("x-request-id");
-	assert.equal(
-		wrongMethodResponse.headers.get("request-id"),
-		wrongMethodRequestId,
-	);
+	const wrongMethodRequestId = wrongMethodResponse.headers.get("request-id");
 	assert.deepEqual(await wrongMethodResponse.json(), {
 		type: "error",
 		error: {
@@ -218,11 +223,11 @@ try {
 			},
 			method: "POST",
 		}),
+		"anthropic",
 	);
 	assert.equal(busyResponse.status, 429);
 	assert.equal(busyResponse.headers.has("retry-after"), false);
-	const busyRequestId = busyResponse.headers.get("x-request-id");
-	assert.equal(busyResponse.headers.get("request-id"), busyRequestId);
+	const busyRequestId = busyResponse.headers.get("request-id");
 	assert.deepEqual(await busyResponse.json(), {
 		type: "error",
 		error: {
@@ -246,12 +251,9 @@ try {
 			},
 			method: "POST",
 		}),
+		"anthropic",
 	);
 	assert.equal(anthropicResponse.status, 200);
-	assert.equal(
-		anthropicResponse.headers.get("request-id"),
-		anthropicResponse.headers.get("x-request-id"),
-	);
 	assert.deepEqual(mockState.generationPaths, [
 		"/v1/chat/completions",
 		"/v1/messages",
@@ -278,12 +280,9 @@ try {
 			},
 			method: "POST",
 		}),
+		"anthropic",
 	);
 	assert.equal(completedAnthropicResponse.status, 200);
-	assert.equal(
-		completedAnthropicResponse.headers.get("request-id"),
-		completedAnthropicResponse.headers.get("x-request-id"),
-	);
 	assert.match(await completedAnthropicResponse.text(), /message_stop/);
 
 	const upstreamErrorResponse = recordResponse(

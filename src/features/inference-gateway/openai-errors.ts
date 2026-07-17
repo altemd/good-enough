@@ -54,10 +54,7 @@ function openAiErrorType(status: number): string {
 /**
  * Makes sure that the passed keys array is exactly the properties.
  */
-function hasOnlyKeys(
-	object: JsonObject, 
-	keys: ReadonlyArray<string>
-): boolean {
+function hasOnlyKeys(object: JsonObject, keys: ReadonlyArray<string>): boolean {
 	return (
 		Object.keys(object).length === keys.length &&
 		keys.every((key) => Object.hasOwn(object, key))
@@ -83,7 +80,7 @@ function hasNonEmptyString(value: unknown): value is string {
 }
 
 /**
- * Checks whether an unknown runtime value is a non-array object and returns as a `JsonObject`, `null` otherwise. 
+ * Checks whether an unknown runtime value is a non-array object and returns as a `JsonObject`, `null` otherwise.
  */
 function asJsonObject(value: unknown): JsonObject | null {
 	return typeof value === "object" && value !== null && !Array.isArray(value)
