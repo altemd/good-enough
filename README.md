@@ -98,6 +98,21 @@ stream. Enforcement resets if the Node process restarts and does not coordinate
 between multiple application processes. Those constraints match the initial
 single-process deployment and `llama-server --parallel 1`.
 
+Generation queueing is deliberately deferred. The initial OpenCode integration
+relies on its retry of retryable `429` responses: its pinned AI SDK continues
+consuming the parent provider stream while foreground tools run, so the parent
+normally drains and releases the gateway lease while a foreground subagent
+retries. Background or parallel subagents are unsupported while the gateway
+permits only one active generation. Claude Code's closed-source HTTP and retry
+behavior is not enough evidence to add a server queue.
+
+Reconsider a bounded queue only if pilot evidence shows client retries are
+inadequate or unfair, or when an authenticated capacity/queue UI is planned.
+Until then there is no queue-size setting, queue timeout, queue metadata, or
+promise that multiple pieces of work from one user can wait in parallel.
+Revalidate the retry and stream-consumption assumptions whenever the pinned
+OpenCode or AI SDK version changes.
+
 Structured metadata distinguishes the status returned by the gateway from a
 status received from llama-server:
 
@@ -171,8 +186,8 @@ Before increasing concurrency above one:
   not need to be equal.
 - Use authenticated identity to add per-user fairness before describing load as
   “other users.” Until then, report “active generations.”
-- Expose active, queued, and configured slot counts through a private dashboard
-  status source.
+- Expose active and configured slot counts through a private dashboard status
+  source. Add queued state only if the deferred queue is separately approved.
 - Benchmark prompt processing and token generation separately at concurrency
   levels 1, 2, 3, and higher.
 - Store measured ranges by hardware, model, quantization, context use, cache
