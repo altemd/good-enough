@@ -200,6 +200,44 @@ Before increasing concurrency above one:
   subagents as concurrent requests, not automatically as different users or
   slots.
 
+### TODO: ephemeral live inference console
+
+After database-backed accounts and personal API keys provide an authenticated
+user mapping, add a terminal-inspired, read-only activity panel to the
+dashboard. It should recreate the experience of observing local inference
+hardware without exposing a shell, raw llama.cpp logs, or process stdout:
+
+- Deliver typed, privacy-filtered events through a private authenticated live
+  source, likely server-sent events (SSE), with `Cache-Control: no-store` and no
+  cross-user broadcast. Use the principal only as a process-local routing key;
+  never include it in event payloads or logs.
+- Send events only to connected browser sessions belonging to the API-key
+  owner. Do not persist, replay, or expose a history endpoint; discard events
+  when no matching dashboard is connected. A page load or refresh starts with
+  an empty panel, and each tab retains at most its latest 200 lines without
+  using local storage.
+- Show request lifecycle, status, duration, TTFT, prompt and generation
+  throughput, input/output token counts, and cache reuse. Show context
+  utilization only when both used tokens and effective capacity come from
+  authoritative sources; never estimate it from text, bytes, or event counts.
+- During the user's own active request, show a compact hardware snapshot when
+  supported: unified-memory use, GPU activity, temperature, and power. Render
+  unavailable sensors as unavailable rather than zero. Reserve process memory,
+  swap/zram, page pressure, device faults, clocks, and throttling details for
+  administrators.
+- Describe the panel as a privacy-filtered, ephemeral live inference console,
+  not raw terminal output. Clearly and persistently distinguish real
+  measurements from any future benchmark-driven simulation.
+- Keep prompts, completions, reasoning, tool arguments, credentials, request
+  bodies, raw SSE frames, filesystem paths, and raw llama.cpp, shell, and
+  process output out of the event contract.
+- Revisit the current production stdout recorder as part of this UI phase. The
+  browser transport must not depend on stdout, and per-request stdout must be
+  removed or governed by a separate explicit retention policy.
+- Test own-user delivery, cross-user isolation, disposal while disconnected,
+  empty state after refresh, the 200-line bound, unsupported sensors, content
+  exclusion, and unambiguous real-versus-simulated labeling.
+
 ### TODO: SSD-protected model loading
 
 Before exposing model selection, loading, eviction, download, or cache
