@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { createHash, timingSafeEqual } from "node:crypto";
 
-import type { ErrorProtocol } from "./protocol-errors";
+import type { ApiProtocol } from "./api-protocol";
 
 const MIN_API_KEY_BYTES = 32;
 const MAX_API_KEY_BYTES = 256;
@@ -21,7 +21,7 @@ interface ConfiguredApiKey {
 
 export function authenticateConfiguredApiKey(
 	request: Request,
-	protocol: ErrorProtocol,
+	apiProtocol: ApiProtocol,
 	configuration: string | undefined,
 ): AuthenticationDecision {
 	const configuredKeys = parseConfiguredApiKeys(configuration);
@@ -29,7 +29,7 @@ export function authenticateConfiguredApiKey(
 		return { status: "configuration_error" };
 	}
 
-	const presentedKey = extractApiKey(request.headers, protocol);
+	const presentedKey = extractApiKey(request.headers, apiProtocol);
 	if (!presentedKey) {
 		return { status: "rejected" };
 	}
@@ -103,9 +103,9 @@ function parseConfiguredApiKeys(
 
 function extractApiKey(
 	headers: Headers,
-	protocol: ErrorProtocol,
+	apiProtocol: ApiProtocol,
 ): string | null {
-	if (protocol === "anthropic") {
+	if (apiProtocol === "anthropic") {
 		const apiKey = headers.get("x-api-key");
 		return apiKey && !/\s/u.test(apiKey) ? apiKey : null;
 	}

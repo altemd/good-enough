@@ -3,6 +3,7 @@ import {
 	createAnthropicErrorBody,
 	isConformingAnthropicError,
 } from "./anthropic-errors";
+import type { ApiProtocol } from "./api-protocol";
 import {
 	applyOpenAiRequestIdHeaders,
 	createOpenAiErrorBody,
@@ -11,8 +12,6 @@ import {
 
 const MAX_UPSTREAM_ERROR_BODY_BYTES = 64 * 1024;
 const encoder = new TextEncoder();
-
-export type ErrorProtocol = "anthropic" | "openai";
 
 export type ProtocolErrorCode =
 	| "authentication_failed"
@@ -26,7 +25,7 @@ export type ProtocolErrorCode =
 	| "upstream_stream_error";
 
 interface ProtocolErrorResponseOptions {
-	readonly protocol: ErrorProtocol;
+	readonly protocol: ApiProtocol;
 	readonly status: number;
 	readonly code: ProtocolErrorCode;
 	readonly message: string;
@@ -37,7 +36,7 @@ interface ProtocolErrorResponseOptions {
 }
 
 interface NormalizeUpstreamErrorOptions {
-	readonly protocol: ErrorProtocol;
+	readonly protocol: ApiProtocol;
 	readonly upstreamResponse: Response;
 	readonly responseHeaders: Headers;
 	readonly requestId: string;
@@ -57,7 +56,7 @@ type JsonObject = Record<string, unknown>;
 
 export function applyProtocolRequestIdHeaders(
 	headers: Headers,
-	protocol: ErrorProtocol,
+	protocol: ApiProtocol,
 	requestId: string,
 ): void {
 	if (protocol === "anthropic") {
@@ -144,7 +143,7 @@ export async function normalizeUpstreamErrorResponse(
 }
 
 export function createProtocolStreamErrorEvent(
-	protocol: ErrorProtocol,
+	protocol: ApiProtocol,
 ): Uint8Array {
 	const body = createProtocolErrorBody(
 		protocol,
@@ -171,7 +170,7 @@ function createUpstreamFallback(
 }
 
 function createProtocolErrorBody(
-	protocol: ErrorProtocol,
+	protocol: ApiProtocol,
 	status: number,
 	code: ProtocolErrorCode,
 	message: string,
@@ -227,7 +226,7 @@ async function readBoundedBody(
 
 function isConformingProtocolError(
 	bytes: Uint8Array,
-	protocol: ErrorProtocol,
+	protocol: ApiProtocol,
 	requestId: string,
 ): boolean {
 	let payload: unknown;

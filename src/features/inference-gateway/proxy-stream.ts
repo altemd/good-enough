@@ -4,13 +4,13 @@ import {
 	type GenerationAdmissionController,
 	type GenerationLease,
 } from "./admission";
+import type { ApiProtocol } from "./api-protocol";
 import type { AuthenticationDecision } from "./auth.server";
 import { createStreamMetadataObserver, type StreamMetadata } from "./metadata";
 import {
 	applyProtocolRequestIdHeaders,
 	createProtocolErrorResponse,
 	createProtocolStreamErrorEvent,
-	type ErrorProtocol,
 	type NormalizedUpstreamError,
 	normalizeUpstreamErrorResponse,
 } from "./protocol-errors";
@@ -93,12 +93,12 @@ export interface GatewayEndpoint {
 	readonly kind: "discovery" | "generation";
 	readonly method: "GET" | "POST";
 	readonly path: "/v1/chat/completions" | "/v1/messages" | "/v1/models";
-	readonly protocol: ErrorProtocol;
+	readonly apiProtocol: ApiProtocol;
 }
 
 export type GatewayAuthenticator = (
 	request: Request,
-	protocol: ErrorProtocol,
+	apiProtocol: ApiProtocol,
 ) => AuthenticationDecision;
 
 export interface GatewayDependencies {
@@ -123,7 +123,7 @@ export async function handleGatewayRequest(
 	const startedAt = (dependencies.wallClock?.() ?? new Date()).toISOString();
 	const requestId =
 		dependencies.createRequestId?.() ?? globalThis.crypto.randomUUID();
-	const errorProtocol = endpoint?.protocol ?? "openai";
+	const apiProtocol = endpoint?.apiProtocol ?? "openai";
 	const observer = createStreamMetadataObserver("none");
 	let upstreamStatus: number | null = null;
 	let upstreamHeadersMs: number | null = null;
@@ -176,7 +176,7 @@ export async function handleGatewayRequest(
 
 	let authentication: AuthenticationDecision;
 	try {
-		authentication = dependencies.authenticate(request, errorProtocol);
+		authentication = dependencies.authenticate(request, apiProtocol);
 	} catch {
 		authentication = { status: "configuration_error" };
 	}
@@ -185,7 +185,7 @@ export async function handleGatewayRequest(
 	if (authentication.status === "configuration_error") {
 		finalize("configuration_error", 500);
 		return createProtocolErrorResponse({
-			protocol: errorProtocol,
+			protocol: apiProtocol,
 			status: 500,
 			code: "configuration_error",
 			message: "Gateway authentication configuration is invalid.",
@@ -197,7 +197,7 @@ export async function handleGatewayRequest(
 		rejectionReason = "authentication_failed";
 		finalize("rejected", 401);
 		return createProtocolErrorResponse({
-			protocol: errorProtocol,
+			protocol: apiProtocol,
 			status: 401,
 			code: "authentication_failed",
 			message: "Authentication failed.",
@@ -212,7 +212,7 @@ export async function handleGatewayRequest(
 		finalize("rejected", status);
 
 		return createProtocolErrorResponse({
-			protocol: errorProtocol,
+			protocol: apiProtocol,
 			status,
 			code: status === 405 ? "method_not_allowed" : "not_found",
 			message:
@@ -232,7 +232,7 @@ export async function handleGatewayRequest(
 	} catch {
 		finalize("configuration_error", 500);
 		return createProtocolErrorResponse({
-			protocol: errorProtocol,
+			protocol: apiProtocol,
 			status: 500,
 			code: "configuration_error",
 			message: "Inference backend configuration is invalid.",
@@ -251,7 +251,7 @@ export async function handleGatewayRequest(
 			finalize("rejected", 429);
 
 			return createProtocolErrorResponse({
-				protocol: errorProtocol,
+				protocol: apiProtocol,
 				status: 429,
 				code: "capacity_exceeded",
 				message:
@@ -309,7 +309,7 @@ export async function handleGatewayRequest(
 		if (abortController.signal.aborted) {
 			finalize("cancelled", 499);
 			return createProtocolErrorResponse({
-				protocol: errorProtocol,
+				protocol: apiProtocol,
 				status: 499,
 				statusText: "Client Closed Request",
 				code: "client_cancelled",
@@ -320,7 +320,7 @@ export async function handleGatewayRequest(
 
 		finalize("upstream_error", 502);
 		return createProtocolErrorResponse({
-			protocol: errorProtocol,
+			protocol: apiProtocol,
 			status: 502,
 			code: "gateway_connection_error",
 			message: "Inference backend is unavailable.",
@@ -332,13 +332,17 @@ export async function handleGatewayRequest(
 		upstreamResponse.headers,
 		RESPONSE_HEADERS_TO_STRIP,
 	);
-	applyProtocolRequestIdHeaders(responseHeaders, endpoint.protocol, requestId);
+	applyProtocolRequestIdHeaders(
+		responseHeaders,
+		endpoint.apiProtocol,
+		requestId,
+	);
 
 	if (upstreamResponse.status >= 400) {
 		let normalizedError: NormalizedUpstreamError;
 		try {
 			normalizedError = await normalizeUpstreamErrorResponse({
-				protocol: endpoint.protocol,
+				protocol: endpoint.apiProtocol,
 				upstreamResponse,
 				responseHeaders,
 				requestId,
@@ -348,7 +352,7 @@ export async function handleGatewayRequest(
 			cleanupAbortListener();
 			finalize("cancelled", 499);
 			return createProtocolErrorResponse({
-				protocol: endpoint.protocol,
+				protocol: endpoint.apiProtocol,
 				status: 499,
 				statusText: "Client Closed Request",
 				code: "client_cancelled",
@@ -361,7 +365,7 @@ export async function handleGatewayRequest(
 		if (abortController.signal.aborted) {
 			finalize("cancelled", 499);
 			return createProtocolErrorResponse({
-				protocol: endpoint.protocol,
+				protocol: endpoint.apiProtocol,
 				status: 499,
 				statusText: "Client Closed Request",
 				code: "client_cancelled",
@@ -404,7 +408,7 @@ export async function handleGatewayRequest(
 
 	const metadataObserver = createStreamMetadataObserver(
 		isEventStream && endpoint.kind === "generation"
-			? endpoint.protocol
+			? endpoint.apiProtocol
 			: "none",
 	);
 	const reader = upstreamResponse.body.getReader();
@@ -434,7 +438,9 @@ export async function handleGatewayRequest(
 					metadataObserver,
 				);
 				if (!cancelled && isEventStream && endpoint.kind === "generation") {
-					controller.enqueue(createProtocolStreamErrorEvent(endpoint.protocol));
+					controller.enqueue(
+						createProtocolStreamErrorEvent(endpoint.apiProtocol),
+					);
 					controller.close();
 					return;
 				}

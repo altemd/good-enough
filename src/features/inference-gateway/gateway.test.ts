@@ -26,19 +26,19 @@ const ENDPOINTS = {
 		kind: "generation",
 		method: "POST",
 		path: "/v1/chat/completions",
-		protocol: "openai",
+		apiProtocol: "openai",
 	},
 	messages: {
 		kind: "generation",
 		method: "POST",
 		path: "/v1/messages",
-		protocol: "anthropic",
+		apiProtocol: "anthropic",
 	},
 	models: {
 		kind: "discovery",
 		method: "GET",
 		path: "/v1/models",
-		protocol: "openai",
+		apiProtocol: "openai",
 	},
 } as const satisfies Record<string, GatewayEndpoint>;
 

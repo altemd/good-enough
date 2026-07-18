@@ -14,21 +14,21 @@ const MODELS_ENDPOINT = {
 	kind: "discovery",
 	method: "GET",
 	path: "/v1/models",
-	protocol: "openai", // v1/models defaults to openai spec, TODO: discovery with anthropic spec
+	apiProtocol: "openai", // v1/models defaults to openai spec, TODO: discovery with anthropic spec
 } as const satisfies GatewayEndpoint;
 
 const OPENAI_CHAT_COMPLETIONS_ENDPOINT = {
 	kind: "generation",
 	method: "POST",
 	path: "/v1/chat/completions",
-	protocol: "openai",
+	apiProtocol: "openai",
 } as const satisfies GatewayEndpoint;
 
 const ANTHROPIC_MESSAGES_ENDPOINT = {
 	kind: "generation",
 	method: "POST",
 	path: "/v1/messages",
-	protocol: "anthropic",
+	apiProtocol: "anthropic",
 } as const satisfies GatewayEndpoint;
 
 export function handleModelsRequest(request: Request): Promise<Response> {
@@ -60,10 +60,10 @@ function handleConfiguredGatewayRequest(
 ): Promise<Response> {
 	return handleGatewayRequest(request, endpoint, {
 		admission: generationAdmission,
-		authenticate: (candidateRequest, protocol) =>
+		authenticate: (candidateRequest, apiProtocol) =>
 			authenticateConfiguredApiKey(
 				candidateRequest,
-				protocol,
+				apiProtocol,
 				process.env.INFERENCE_API_KEYS,
 			),
 		llamaServerUrl: process.env.LLAMA_SERVER_URL,

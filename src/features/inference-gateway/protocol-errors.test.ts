@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { ApiProtocol } from "./api-protocol";
 import {
 	createProtocolErrorResponse,
 	createProtocolStreamErrorEvent,
@@ -236,10 +237,7 @@ describe("bounded upstream error normalization", () => {
 	});
 });
 
-function normalize(
-	upstreamResponse: Response,
-	protocol: "anthropic" | "openai",
-) {
+function normalize(upstreamResponse: Response, protocol: ApiProtocol) {
 	return normalizeUpstreamErrorResponse({
 		protocol,
 		upstreamResponse,
