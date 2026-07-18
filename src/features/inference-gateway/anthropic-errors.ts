@@ -46,6 +46,8 @@ export function isConformingAnthropicError(
 
 function anthropicErrorType(status: number): string {
 	switch (status) {
+		case 401:
+			return "authentication_error";
 		case 404:
 			return "not_found_error";
 		case 429:

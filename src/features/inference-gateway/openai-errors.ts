@@ -17,7 +17,7 @@ export function createOpenAiErrorBody(
 			message,
 			type: openAiErrorType(status),
 			param: null,
-			code,
+			code: code === "authentication_failed" ? "invalid_api_key" : code,
 		},
 	};
 }

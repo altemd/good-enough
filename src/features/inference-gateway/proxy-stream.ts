@@ -4,6 +4,7 @@ import {
 	type GenerationAdmissionController,
 	type GenerationLease,
 } from "./admission";
+import type { AuthenticationDecision } from "./auth.server";
 import { createStreamMetadataObserver, type StreamMetadata } from "./metadata";
 import {
 	applyProtocolRequestIdHeaders,
@@ -56,11 +57,17 @@ export type GatewayOutcome =
 	| "upstream_error";
 
 export type GatewayRejectionReason =
+	| "authentication_failed"
 	| "capacity_exceeded"
 	| "method_not_allowed"
 	| "not_found";
 
 export type GatewayAdmissionStatus = "admitted" | "not_applicable" | "rejected";
+
+export type GatewayAuthenticationStatus =
+	| "authenticated"
+	| "configuration_error"
+	| "rejected";
 
 export interface InferenceRequestMetadata extends StreamMetadata {
 	event: "inference_request";
@@ -71,6 +78,7 @@ export interface InferenceRequestMetadata extends StreamMetadata {
 	upstreamStatus: number | null;
 	outcome: GatewayOutcome;
 	rejectionReason: GatewayRejectionReason | null;
+	authenticationStatus: GatewayAuthenticationStatus;
 	admissionStatus: GatewayAdmissionStatus;
 	concurrencyLimit: number | null;
 	activeGenerationsAtAdmission: number | null;
@@ -88,7 +96,13 @@ export interface GatewayEndpoint {
 	readonly protocol: ErrorProtocol;
 }
 
-interface GatewayDependencies {
+export type GatewayAuthenticator = (
+	request: Request,
+	protocol: ErrorProtocol,
+) => AuthenticationDecision;
+
+export interface GatewayDependencies {
+	authenticate: GatewayAuthenticator;
 	admission?: GenerationAdmissionController;
 	llamaServerUrl?: string;
 	fetch?: typeof globalThis.fetch;
@@ -102,7 +116,7 @@ interface GatewayDependencies {
 export async function handleGatewayRequest(
 	request: Request,
 	endpoint: GatewayEndpoint | null,
-	dependencies: GatewayDependencies = {},
+	dependencies: GatewayDependencies,
 ): Promise<Response> {
 	const now = dependencies.now ?? performance.now.bind(performance);
 	const startedAtMs = now();
@@ -114,6 +128,7 @@ export async function handleGatewayRequest(
 	let upstreamStatus: number | null = null;
 	let upstreamHeadersMs: number | null = null;
 	let rejectionReason: GatewayRejectionReason | null = null;
+	let authenticationStatus: GatewayAuthenticationStatus = "rejected";
 	let admissionStatus: GatewayAdmissionStatus = "not_applicable";
 	let admissionSnapshot: AdmissionSnapshot | null = null;
 	let generationLease: GenerationLease | null = null;
@@ -140,6 +155,7 @@ export async function handleGatewayRequest(
 			upstreamStatus,
 			outcome,
 			rejectionReason,
+			authenticationStatus,
 			admissionStatus,
 			concurrencyLimit: admissionSnapshot?.concurrencyLimit ?? null,
 			activeGenerationsAtAdmission:
@@ -157,6 +173,37 @@ export async function handleGatewayRequest(
 			// Observability must never interrupt the proxied response.
 		}
 	};
+
+	let authentication: AuthenticationDecision;
+	try {
+		authentication = dependencies.authenticate(request, errorProtocol);
+	} catch {
+		authentication = { status: "configuration_error" };
+	}
+	authenticationStatus = authentication.status;
+
+	if (authentication.status === "configuration_error") {
+		finalize("configuration_error", 500);
+		return createProtocolErrorResponse({
+			protocol: errorProtocol,
+			status: 500,
+			code: "configuration_error",
+			message: "Gateway authentication configuration is invalid.",
+			requestId,
+		});
+	}
+
+	if (authentication.status === "rejected") {
+		rejectionReason = "authentication_failed";
+		finalize("rejected", 401);
+		return createProtocolErrorResponse({
+			protocol: errorProtocol,
+			status: 401,
+			code: "authentication_failed",
+			message: "Authentication failed.",
+			requestId,
+		});
+	}
 
 	if (endpoint === null || endpoint.method !== request.method) {
 		const allowedMethods = endpoint ? [endpoint.method] : [];

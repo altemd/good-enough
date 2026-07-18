@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createGenerationAdmissionController } from "./admission";
 import {
@@ -8,13 +8,19 @@ import {
 	handleUnknownV1Request,
 } from "./gateway.server";
 import {
+	type GatewayDependencies,
 	type GatewayEndpoint,
-	handleGatewayRequest,
+	handleGatewayRequest as handleGatewayRequestWithAuthentication,
 	type InferenceRequestMetadata,
 } from "./proxy-stream";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+const TEST_PRINCIPAL_ID = "test-pilot";
+const TEST_API_KEY = "gateway-test-key-00000000000000001";
+const TEST_API_KEY_CONFIGURATION = JSON.stringify([
+	{ id: TEST_PRINCIPAL_ID, key: TEST_API_KEY },
+]);
 const ENDPOINTS = {
 	"chat/completions": {
 		kind: "generation",
@@ -36,10 +42,31 @@ const ENDPOINTS = {
 	},
 } as const satisfies Record<string, GatewayEndpoint>;
 
+const authenticateTestRequest: GatewayDependencies["authenticate"] = () => ({
+	status: "authenticated",
+	principalId: TEST_PRINCIPAL_ID,
+});
+
+function handleGatewayRequest(
+	request: Request,
+	endpoint: GatewayEndpoint | null,
+	dependencies: Omit<GatewayDependencies, "authenticate"> &
+		Partial<Pick<GatewayDependencies, "authenticate">> = {},
+): Promise<Response> {
+	return handleGatewayRequestWithAuthentication(request, endpoint, {
+		authenticate: authenticateTestRequest,
+		...dependencies,
+	});
+}
+
 afterEach(() => {
 	vi.restoreAllMocks();
 	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
+});
+
+beforeEach(() => {
+	vi.stubEnv("INFERENCE_API_KEYS", TEST_API_KEY_CONFIGURATION);
 });
 
 describe("endpoint policies", () => {
@@ -110,6 +137,7 @@ describe("endpoint policies", () => {
 			outcome: "completed",
 			responseStatus: 201,
 			upstreamStatus: 201,
+			authenticationStatus: "authenticated",
 			admissionStatus: method === "POST" ? "admitted" : "not_applicable",
 		});
 	});
@@ -180,6 +208,142 @@ describe("endpoint policies", () => {
 			rejectionReason: "method_not_allowed",
 			admissionStatus: "not_applicable",
 		});
+	});
+});
+
+describe("authentication boundary", () => {
+	it("rejects OpenAI authentication before body reads, upstream, or admission", async () => {
+		const request = new Request("https://gateway.example/v1/chat/completions", {
+			method: "POST",
+			body: new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(encoder.encode("PRIVATE_UNREAD_BODY"));
+					controller.close();
+				},
+			}),
+			duplex: "half",
+		} as RequestInit & { duplex: "half" });
+		const fetchMock = createFetchMock(async () => new Response());
+		const admission = createGenerationAdmissionController();
+		const metadata = createRecorder();
+
+		const response = await handleGatewayRequest(
+			request,
+			ENDPOINTS["chat/completions"],
+			{
+				authenticate: () => ({ status: "rejected" }),
+				admission,
+				fetch: fetchMock.fetch,
+				record: metadata.record,
+				createRequestId: () => "openai-auth-request",
+			},
+		);
+
+		expect(response.status).toBe(401);
+		expect(response.headers.get("x-request-id")).toBe("openai-auth-request");
+		expect(response.headers.get("request-id")).toBeNull();
+		expect(await response.json()).toEqual({
+			error: {
+				message: "Authentication failed.",
+				type: "invalid_request_error",
+				param: null,
+				code: "invalid_api_key",
+			},
+		});
+		expect(request.bodyUsed).toBe(false);
+		expect(fetchMock.mock).not.toHaveBeenCalled();
+		expect(admission.snapshot().activeGenerations).toBe(0);
+		expect(metadata.events).toHaveLength(1);
+		expect(metadata.events[0]).toMatchObject({
+			responseStatus: 401,
+			upstreamStatus: null,
+			outcome: "rejected",
+			rejectionReason: "authentication_failed",
+			authenticationStatus: "rejected",
+			admissionStatus: "not_applicable",
+		});
+	});
+
+	it("uses the independent Anthropic 401 contract before method validation", async () => {
+		const fetchMock = createFetchMock(async () => new Response());
+		const metadata = createRecorder();
+		const response = await handleGatewayRequest(
+			new Request("https://gateway.example/v1/messages", { method: "GET" }),
+			ENDPOINTS.messages,
+			{
+				authenticate: () => ({ status: "rejected" }),
+				fetch: fetchMock.fetch,
+				record: metadata.record,
+				createRequestId: () => "anthropic-auth-request",
+			},
+		);
+
+		expect(response.status).toBe(401);
+		expect(response.headers.get("x-request-id")).toBeNull();
+		expect(response.headers.get("request-id")).toBe("anthropic-auth-request");
+		expect(await response.json()).toEqual({
+			type: "error",
+			error: {
+				type: "authentication_error",
+				message: "Authentication failed.",
+			},
+			request_id: "anthropic-auth-request",
+		});
+		expect(response.headers.get("allow")).toBeNull();
+		expect(fetchMock.mock).not.toHaveBeenCalled();
+		expect(metadata.events[0]).toMatchObject({
+			responseStatus: 401,
+			rejectionReason: "authentication_failed",
+			authenticationStatus: "rejected",
+		});
+	});
+
+	it("fails closed before exposing an unknown route when auth config is invalid", async () => {
+		const fetchMock = createFetchMock(async () => new Response());
+		const metadata = createRecorder();
+		const response = await handleGatewayRequest(
+			new Request("https://gateway.example/v1/slots"),
+			null,
+			{
+				authenticate: () => ({ status: "configuration_error" }),
+				fetch: fetchMock.fetch,
+				record: metadata.record,
+				createRequestId: () => "auth-config-request",
+			},
+		);
+
+		expect(response.status).toBe(500);
+		expect(await response.text()).not.toContain("INFERENCE_API_KEYS");
+		expect(fetchMock.mock).not.toHaveBeenCalled();
+		expect(metadata.events[0]).toMatchObject({
+			responseStatus: 500,
+			upstreamStatus: null,
+			outcome: "configuration_error",
+			rejectionReason: null,
+			authenticationStatus: "configuration_error",
+			admissionStatus: "not_applicable",
+		});
+	});
+
+	it("does not record the authenticated principal identifier", async () => {
+		const metadata = createRecorder();
+		const response = await handleGatewayRequest(
+			new Request("https://gateway.example/v1/models"),
+			ENDPOINTS.models,
+			{
+				authenticate: () => ({
+					status: "authenticated",
+					principalId: "PRIVATE_PRINCIPAL_SENTINEL",
+				}),
+				fetch: createFetchMock(async () => new Response("ok")).fetch,
+				record: metadata.record,
+			},
+		);
+
+		expect(await response.text()).toBe("ok");
+		expect(JSON.stringify(metadata.events)).not.toContain(
+			"PRIVATE_PRINCIPAL_SENTINEL",
+		);
 	});
 });
 
@@ -397,6 +561,10 @@ describe("server endpoint adapters", () => {
 			new Request(`https://gateway.example/v1/${path}?trace=adapter`, {
 				method,
 				body: method === "POST" ? "{}" : undefined,
+				headers:
+					path === "messages"
+						? { "x-api-key": TEST_API_KEY }
+						: { authorization: `Bearer ${TEST_API_KEY}` },
 			}),
 		);
 
@@ -412,7 +580,9 @@ describe("server endpoint adapters", () => {
 		vi.spyOn(console, "info").mockImplementation(() => {});
 
 		const response = await handleUnknownV1Request(
-			new Request("https://gateway.example/v1/slots"),
+			new Request("https://gateway.example/v1/slots", {
+				headers: { authorization: `Bearer ${TEST_API_KEY}` },
+			}),
 		);
 
 		expect(response.status).toBe(404);
@@ -425,7 +595,10 @@ describe("server endpoint adapters", () => {
 		vi.spyOn(console, "info").mockImplementation(() => {});
 
 		const response = await handleModelsRequest(
-			new Request("https://gateway.example/v1/models", { method: "HEAD" }),
+			new Request("https://gateway.example/v1/models", {
+				method: "HEAD",
+				headers: { authorization: `Bearer ${TEST_API_KEY}` },
+			}),
 		);
 
 		expect(response.status).toBe(405);
@@ -1146,7 +1319,10 @@ function postRequest(path: string, body: string): Request {
 	return new Request(`https://gateway.example/v1/${path}`, {
 		method: "POST",
 		body,
-		headers: { "content-type": "application/json" },
+		headers: {
+			authorization: `Bearer ${TEST_API_KEY}`,
+			"content-type": "application/json",
+		},
 	});
 }
 

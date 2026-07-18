@@ -8,6 +8,8 @@ const PRIVATE_PROMPT = "private-prompt-smoke-sentinel";
 const PRIVATE_COMPLETION = "private-completion-smoke-sentinel";
 const PRIVATE_TOOL_ARGUMENT = "private-tool-argument-smoke-sentinel";
 const PRIVATE_UPSTREAM_ERROR = "private-upstream-error-smoke-sentinel";
+const PRIVATE_PRINCIPAL_ID = "private-pilot-principal-sentinel";
+const PRIVATE_API_KEY = "private-runtime-key-000000000000001";
 const UNRELATED_NUMBER = "987654321";
 const REQUEST_BODY = JSON.stringify({
 	model: "smoke-model",
@@ -26,6 +28,8 @@ let applicationStderr = "";
 let shuttingDown = false;
 
 const mockServer = createServer((request, response) => {
+	assert.equal(request.headers.authorization, undefined);
+	assert.equal(request.headers["x-api-key"], undefined);
 	request.resume();
 
 	if (request.method === "GET" && request.url === "/v1/models") {
@@ -137,6 +141,9 @@ try {
 		env: {
 			...process.env,
 			HOST,
+			INFERENCE_API_KEYS: JSON.stringify([
+				{ id: PRIVATE_PRINCIPAL_ID, key: PRIVATE_API_KEY },
+			]),
 			LLAMA_SERVER_URL: `http://${HOST}:${mockPort}`,
 			PORT: String(applicationPort),
 		},
@@ -152,6 +159,8 @@ try {
 	});
 
 	const requestIds = [];
+	const openAiHeaders = { authorization: `Bearer ${PRIVATE_API_KEY}` };
+	const anthropicHeaders = { "x-api-key": PRIVATE_API_KEY };
 	const recordResponse = (response, protocol = "openai") => {
 		const requestIdHeader =
 			protocol === "anthropic" ? "request-id" : "x-request-id";
@@ -168,13 +177,50 @@ try {
 	};
 
 	const modelsResponse = recordResponse(
-		await waitForServer(`${applicationOrigin}/v1/models`),
+		await waitForServer(`${applicationOrigin}/v1/models`, {
+			headers: openAiHeaders,
+		}),
 	);
 	assert.equal(modelsResponse.status, 200);
 	assert.deepEqual(await modelsResponse.json(), { object: "list", data: [] });
 
+	const unauthenticatedOpenAiResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/chat/completions`, {
+			body: REQUEST_BODY,
+			headers: { "content-type": "application/json" },
+			method: "POST",
+		}),
+	);
+	assert.equal(unauthenticatedOpenAiResponse.status, 401);
+	assert.deepEqual(await unauthenticatedOpenAiResponse.json(), {
+		error: {
+			message: "Authentication failed.",
+			type: "invalid_request_error",
+			param: null,
+			code: "invalid_api_key",
+		},
+	});
+
+	const unauthenticatedAnthropicResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/messages`, { method: "PUT" }),
+		"anthropic",
+	);
+	assert.equal(unauthenticatedAnthropicResponse.status, 401);
+	assert.equal(unauthenticatedAnthropicResponse.headers.get("allow"), null);
+	const unauthenticatedAnthropicRequestId =
+		unauthenticatedAnthropicResponse.headers.get("request-id");
+	assert.deepEqual(await unauthenticatedAnthropicResponse.json(), {
+		type: "error",
+		error: {
+			type: "authentication_error",
+			message: "Authentication failed.",
+		},
+		request_id: unauthenticatedAnthropicRequestId,
+	});
+	assert.equal(mockState.generationPaths.length, 0);
+
 	const unknownResponse = recordResponse(
-		await fetch(`${applicationOrigin}/v1/slots`),
+		await fetch(`${applicationOrigin}/v1/slots`, { headers: openAiHeaders }),
 	);
 	assert.equal(unknownResponse.status, 404);
 	assert.deepEqual(await unknownResponse.json(), {
@@ -188,7 +234,10 @@ try {
 	assert.equal(mockState.generationPaths.length, 0);
 
 	const wrongMethodResponse = recordResponse(
-		await fetch(`${applicationOrigin}/v1/messages`, { method: "PUT" }),
+		await fetch(`${applicationOrigin}/v1/messages`, {
+			headers: anthropicHeaders,
+			method: "PUT",
+		}),
 		"anthropic",
 	);
 	assert.equal(wrongMethodResponse.status, 405);
@@ -207,7 +256,10 @@ try {
 	const openAiResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/chat/completions`, {
 			body: REQUEST_BODY,
-			headers: { "content-type": "application/json" },
+			headers: {
+				...openAiHeaders,
+				"content-type": "application/json",
+			},
 			method: "POST",
 		}),
 	);
@@ -218,6 +270,7 @@ try {
 		await fetch(`${applicationOrigin}/v1/messages`, {
 			body: REQUEST_BODY,
 			headers: {
+				...anthropicHeaders,
 				"anthropic-version": "2023-06-01",
 				"content-type": "application/json",
 			},
@@ -246,6 +299,7 @@ try {
 		await fetch(`${applicationOrigin}/v1/messages`, {
 			body: REQUEST_BODY,
 			headers: {
+				...anthropicHeaders,
 				"anthropic-version": "2023-06-01",
 				"content-type": "application/json",
 			},
@@ -264,7 +318,10 @@ try {
 	const completedOpenAiResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/chat/completions`, {
 			body: REQUEST_BODY,
-			headers: { "content-type": "application/json" },
+			headers: {
+				...openAiHeaders,
+				"content-type": "application/json",
+			},
 			method: "POST",
 		}),
 	);
@@ -275,6 +332,7 @@ try {
 		await fetch(`${applicationOrigin}/v1/messages`, {
 			body: REQUEST_BODY,
 			headers: {
+				...anthropicHeaders,
 				"anthropic-version": "2023-06-01",
 				"content-type": "application/json",
 			},
@@ -289,6 +347,7 @@ try {
 		await fetch(`${applicationOrigin}/v1/chat/completions`, {
 			body: REQUEST_BODY,
 			headers: {
+				...openAiHeaders,
 				"content-type": "application/json",
 				"x-smoke-upstream-error": "1",
 			},
@@ -309,7 +368,9 @@ try {
 		"/v1/chat/completions",
 	]);
 
-	await waitFor(() => readMetadataEvents(applicationStdout).length === 9);
+	await waitFor(
+		() => readMetadataEvents(applicationStdout).length === requestIds.length,
+	);
 	const metadataEvents = readMetadataEvents(applicationStdout);
 	assert.equal(metadataEvents.length, requestIds.length);
 	assert.equal(new Set(requestIds).size, requestIds.length);
@@ -331,12 +392,25 @@ try {
 	assert.equal(busyMetadata?.activeGenerationsAtAdmission, 1);
 	assert.equal(busyMetadata?.queuedGenerationsAtAdmission, 0);
 
+	const authenticationRejections = metadataEvents.filter(
+		(event) => event.rejectionReason === "authentication_failed",
+	);
+	assert.equal(authenticationRejections.length, 2);
+	for (const event of authenticationRejections) {
+		assert.equal(event.responseStatus, 401);
+		assert.equal(event.upstreamStatus, null);
+		assert.equal(event.authenticationStatus, "rejected");
+		assert.equal(event.admissionStatus, "not_applicable");
+	}
+
 	const allApplicationOutput = `${applicationStdout}\n${applicationStderr}`;
 	for (const sentinel of [
 		PRIVATE_PROMPT,
 		PRIVATE_COMPLETION,
 		PRIVATE_TOOL_ARGUMENT,
 		PRIVATE_UPSTREAM_ERROR,
+		PRIVATE_PRINCIPAL_ID,
+		PRIVATE_API_KEY,
 		UNRELATED_NUMBER,
 	]) {
 		assert.equal(
@@ -425,7 +499,7 @@ async function waitFor(predicate, timeoutMilliseconds = 5_000) {
 	}
 }
 
-async function waitForServer(url) {
+async function waitForServer(url, init) {
 	let lastError;
 	const deadline = Date.now() + 10_000;
 
@@ -437,7 +511,7 @@ async function waitForServer(url) {
 		}
 
 		try {
-			return await fetch(url);
+			return await fetch(url, init);
 		} catch (error) {
 			lastError = error;
 			await delay(50);

@@ -15,6 +15,7 @@ const encoder = new TextEncoder();
 export type ErrorProtocol = "anthropic" | "openai";
 
 export type ProtocolErrorCode =
+	| "authentication_failed"
 	| "capacity_exceeded"
 	| "client_cancelled"
 	| "configuration_error"

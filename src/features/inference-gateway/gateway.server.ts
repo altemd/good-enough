@@ -1,6 +1,7 @@
 import "@tanstack/react-start/server-only";
 
 import { createGenerationAdmissionController } from "./admission";
+import { authenticateConfiguredApiKey } from "./auth.server";
 import {
 	type GatewayEndpoint,
 	handleGatewayRequest,
@@ -59,6 +60,12 @@ function handleConfiguredGatewayRequest(
 ): Promise<Response> {
 	return handleGatewayRequest(request, endpoint, {
 		admission: generationAdmission,
+		authenticate: (candidateRequest, protocol) =>
+			authenticateConfiguredApiKey(
+				candidateRequest,
+				protocol,
+				process.env.INFERENCE_API_KEYS,
+			),
 		llamaServerUrl: process.env.LLAMA_SERVER_URL,
 		record: recordInferenceMetadata,
 	});
