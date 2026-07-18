@@ -30,11 +30,57 @@ llama-server \
   --parallel 1
 ```
 
-Copy `.env.example` to `.env` only when you need to change the loopback port.
+Copy `.env.example` to `.env` and replace its synthetic API key before starting
+the gateway. Do not commit the resulting `.env` file or a real credential.
 The gateway writes one structured metadata event per request to stdout. It does
 not log prompt, completion, tool-argument, credential, or raw streaming data.
 Numeric metadata is extracted only from explicitly allowlisted protocol fields;
 other numbers in an API response are ignored.
+
+### Pilot authentication
+
+Every public `/v1/*` request requires a statically configured pilot API key.
+`INFERENCE_API_KEYS` is a JSON array mapping stable, non-secret principal IDs to
+keys:
+
+```dotenv
+INFERENCE_API_KEYS=[{"id":"pilot-user","key":"replace-with-a-random-32-byte-secret"}]
+```
+
+Keys must be unique, contain no whitespace, and be between 32 and 256 UTF-8
+bytes. Principal IDs must be unique, start with a letter or number, and contain
+only letters, numbers, underscores, or hyphens. Missing or invalid
+configuration fails closed with a sanitized `500`.
+
+OpenAI-compatible routes use Bearer authentication:
+
+```bash
+curl http://127.0.0.1:3000/v1/models \
+  -H "Authorization: Bearer $GOOD_ENOUGH_API_KEY"
+```
+
+The Anthropic-compatible Messages route uses `x-api-key`:
+
+```bash
+curl http://127.0.0.1:3000/v1/messages \
+  -H "x-api-key: $GOOD_ENOUGH_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  --data '{"model":"local-model","max_tokens":16,"messages":[]}'
+```
+
+Authentication runs before route rejection, backend configuration, request-body
+streaming, and generation admission. Missing, malformed, and unknown
+credentials receive the same generic `401`. OpenAI errors use
+`invalid_request_error` with code `invalid_api_key`; Anthropic errors use
+`authentication_error` with `request_id` and a `request-id` header. Credentials
+are stripped before llama-server, and neither credentials nor principal IDs are
+written to metadata.
+
+This is deliberately limited pilot configuration: keys remain in the process
+environment, and rotation or revocation requires changing the environment and
+restarting the application. Sign-in, persistent hashed keys, display-once key
+creation, and self-service revocation remain deferred.
 
 ### Capacity behavior
 
@@ -58,6 +104,8 @@ status received from llama-server:
 - `responseStatus` is the HTTP status produced by the gateway.
 - `upstreamStatus` is the llama-server status, or `null` if no upstream
   response existed.
+- `authenticationStatus` records whether authentication succeeded, was
+  rejected, or failed because trusted server configuration was invalid.
 - `admissionStatus` records whether generation capacity was admitted, rejected,
   or not applicable.
 - `activeGenerationsAtAdmission`, `queuedGenerationsAtAdmission`, and
@@ -121,7 +169,7 @@ Before increasing concurrency above one:
 - Record the gateway active limit separately from each loaded model's
   llama-server parallel-slot capacity; they model different constraints and do
   not need to be equal.
-- Add authenticated identity and per-user fairness before describing load as
+- Use authenticated identity to add per-user fairness before describing load as
   “other users.” Until then, report “active generations.”
 - Expose active, queued, and configured slot counts through a private dashboard
   status source.
@@ -162,11 +210,19 @@ bounded saved-sampling-parameter surface are recorded in
 
 ### TODO: benchmark-driven simulation mode
 
-Add a trusted server-configured simulation backend for development, demos,
-dashboard testing, and capacity planning:
+Add a trusted server-enabled simulation backend and interactive demo for
+development, product demonstrations, dashboard testing, and capacity planning:
 
-- Clients must not be able to switch real versus simulated inference per
-  request. Simulation must never contact llama-server.
+- Let users explicitly opt into a clearly labeled demo experience with
+  clickable synthetic prompts for chat, reasoning, tool use, and streaming.
+  Enabling the feature remains trusted server configuration; an untrusted API
+  request field must not switch real versus simulated inference.
+- When real inference is busy, the UI may offer the simulation demo instead of
+  only showing an overload error. Never silently convert a real request into a
+  simulated response. Define the load signal before implementation rather than
+  assuming that “more than five users” means signed-in users, active sessions,
+  concurrent requests, or queued requests.
+- Simulation must never contact llama-server or any external inference API.
 - Preserve the allowed routes and streaming formats, but return deterministic
   canned content rather than pretending to perform meaningful inference.
 - Use versioned benchmark profiles keyed by hardware, model, quantization,
@@ -175,12 +231,14 @@ dashboard testing, and capacity planning:
   nonlinear multi-slot slowdown separately. Allow configured synthetic token
   counts when accurate tokenization is unavailable.
 - Mark every response and metadata event unambiguously with a response header
-  and `simulated: true`, and show a persistent dashboard warning.
+  and `simulated: true`. Show persistent simulation disclaimers before, during,
+  and after the demo response, including that no model or inference API was
+  contacted and that displayed speed is simulated from benchmark data.
 - Support deterministic seeded completion, cancellation, overload, slow
   generation, and backend-failure scenarios.
-- Keep simulated usage separate from real usage counters and regression-test
-  that it cannot fall through to llama-server or be mistaken for real
-  inference.
+- Do not retain user-entered demo prompts. Keep simulated usage separate from
+  real usage counters and regression-test that it cannot fall through to
+  llama-server, contact an external API, or be mistaken for real inference.
 
 # Building For Production
 
@@ -199,9 +257,9 @@ pnpm test
 ```
 
 The built-server regression harness compiles the production application, starts
-an isolated loopback fake llama-server, and checks routing, shared capacity,
-stream cancellation, release paths, request IDs, metadata cardinality, and log
-privacy:
+an isolated loopback fake llama-server, and checks authentication, routing,
+shared capacity, stream cancellation, release paths, request IDs, metadata
+cardinality, and log privacy:
 
 ```bash
 pnpm test:runtime
