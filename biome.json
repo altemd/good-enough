@@ -10,9 +10,11 @@
 		"includes": [
 			"**/src/**/*",
 			"**/scripts/**/*.mjs",
+			"**/scripts/**/*.ts",
 			"**/.vscode/**/*",
 			"**/index.html",
 			"**/vite.config.ts",
+			"**/drizzle.config.ts",
 			"**/vitest.config.ts",
 			"!**/src/routeTree.gen.ts",
 			"!**/src/styles.css"
