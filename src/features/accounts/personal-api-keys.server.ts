@@ -1,0 +1,165 @@
+import "@tanstack/react-start/server-only";
+
+import { and, asc, count, eq, gt, isNull } from "drizzle-orm";
+
+import type {
+	AccountMutationResult,
+	CurrentAccount,
+} from "./account-contract.ts";
+import {
+	createPersonalApiKeyMaterial,
+	credentialSecretMatchesDigest,
+	parsePersonalApiKey,
+	parsePersonalApiKeyPrefix,
+} from "./credential-secrets.server.ts";
+import {
+	type AccountDatabase,
+	getAccountDatabase,
+	runImmediateAccountTransaction,
+} from "./db.server.ts";
+import { apiKeys, users } from "./schema.ts";
+
+const API_KEY_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_ACTIVE_API_KEYS = 10;
+
+export function createPersonalApiKey(
+	account: CurrentAccount,
+	database: AccountDatabase = getAccountDatabase(),
+	now = Date.now(),
+): AccountMutationResult<{
+	apiKey: string;
+	prefix: string;
+	createdAt: number;
+	expiresAt: number;
+}> {
+	if (account.mustChangePassword) {
+		return { ok: false, code: "forbidden" };
+	}
+	return runImmediateAccountTransaction(database.sqlite, () => {
+		const { value: activeCount } = database.db
+			.select({ value: count() })
+			.from(apiKeys)
+			.where(
+				and(
+					eq(apiKeys.userId, account.id),
+					isNull(apiKeys.revokedAt),
+					gt(apiKeys.expiresAt, now),
+				),
+			)
+			.get() as { value: number };
+		if (activeCount >= MAX_ACTIVE_API_KEYS) {
+			return { ok: false, code: "forbidden" } as const;
+		}
+		const key = createPersonalApiKeyMaterial();
+		const expiresAt = now + API_KEY_LIFETIME_MS;
+		database.db
+			.insert(apiKeys)
+			.values({
+				selector: key.selector,
+				userId: account.id,
+				prefix: key.prefix,
+				secretDigest: key.secretDigest,
+				createdAt: now,
+				expiresAt,
+			})
+			.run();
+		return {
+			ok: true,
+			value: {
+				apiKey: key.apiKey,
+				prefix: key.prefix,
+				createdAt: now,
+				expiresAt,
+			},
+		} as const;
+	});
+}
+
+export function listPersonalApiKeys(
+	account: CurrentAccount,
+	database: AccountDatabase = getAccountDatabase(),
+	now = Date.now(),
+) {
+	if (account.mustChangePassword) {
+		return null;
+	}
+	return database.db
+		.select({
+			prefix: apiKeys.prefix,
+			createdAt: apiKeys.createdAt,
+			expiresAt: apiKeys.expiresAt,
+			revokedAt: apiKeys.revokedAt,
+		})
+		.from(apiKeys)
+		.where(eq(apiKeys.userId, account.id))
+		.orderBy(asc(apiKeys.createdAt))
+		.all()
+		.map((key) => ({
+			prefix: key.prefix,
+			createdAt: key.createdAt,
+			expiresAt: key.expiresAt,
+			state:
+				key.revokedAt !== null
+					? ("revoked" as const)
+					: key.expiresAt <= now
+						? ("expired" as const)
+						: ("active" as const),
+		}));
+}
+
+export function revokePersonalApiKey(
+	account: CurrentAccount,
+	prefix: string,
+	database: AccountDatabase = getAccountDatabase(),
+	now = Date.now(),
+): AccountMutationResult {
+	const selector = parsePersonalApiKeyPrefix(prefix);
+	if (account.mustChangePassword || !selector) {
+		return { ok: false, code: "forbidden" };
+	}
+	return runImmediateAccountTransaction(database.sqlite, () => {
+		database.db
+			.update(apiKeys)
+			.set({ revokedAt: now })
+			.where(
+				and(
+					eq(apiKeys.selector, selector),
+					eq(apiKeys.userId, account.id),
+					isNull(apiKeys.revokedAt),
+				),
+			)
+			.run();
+		return { ok: true, value: {} } as const;
+	});
+}
+
+export function authenticatePersonalApiKey(
+	presentedKey: string,
+	database: AccountDatabase = getAccountDatabase(),
+	now = Date.now(),
+): { status: "authenticated"; principalId: string } | { status: "rejected" } {
+	const parsed = parsePersonalApiKey(presentedKey);
+	if (!parsed) return { status: "rejected" };
+	const key = database.db
+		.select({
+			userId: apiKeys.userId,
+			secretDigest: apiKeys.secretDigest,
+			expiresAt: apiKeys.expiresAt,
+			revokedAt: apiKeys.revokedAt,
+			userStatus: users.status,
+		})
+		.from(apiKeys)
+		.innerJoin(users, eq(apiKeys.userId, users.id))
+		.where(eq(apiKeys.selector, parsed.selector))
+		.get();
+	if (
+		!key ||
+		key.revokedAt !== null ||
+		key.expiresAt <= now ||
+		key.userStatus !== "active"
+	)
+		return { status: "rejected" };
+	return credentialSecretMatchesDigest(parsed.secret, key.secretDigest)
+		? { status: "authenticated", principalId: key.userId }
+		: { status: "rejected" };
+}
