@@ -1,4 +1,7 @@
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { getAccountDatabase } from "#/features/accounts/db.server";
 
 import { createGenerationAdmissionController } from "./admission";
 import {
@@ -16,11 +19,10 @@ import {
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const TEST_PRINCIPAL_ID = "test-pilot";
-const TEST_API_KEY = "gateway-test-key-00000000000000001";
-const TEST_API_KEY_CONFIGURATION = JSON.stringify([
-	{ id: TEST_PRINCIPAL_ID, key: TEST_API_KEY },
-]);
+const TEST_PRINCIPAL_ID = "test-account";
+const TEST_SELECTOR = "s".repeat(16);
+const TEST_SECRET = "v".repeat(43);
+const TEST_API_KEY = `ge_${TEST_SELECTOR}_${TEST_SECRET}`;
 const ENDPOINTS = {
 	"chat/completions": {
 		kind: "generation",
@@ -50,10 +52,11 @@ const authenticateTestRequest: GatewayDependencies["authenticate"] = () => ({
 function handleGatewayRequest(
 	request: Request,
 	endpoint: GatewayEndpoint | null,
-	dependencies: Omit<GatewayDependencies, "authenticate"> &
-		Partial<Pick<GatewayDependencies, "authenticate">> = {},
+	dependencies: Omit<GatewayDependencies, "admission" | "authenticate"> &
+		Partial<Pick<GatewayDependencies, "admission" | "authenticate">> = {},
 ): Promise<Response> {
 	return handleGatewayRequestWithAuthentication(request, endpoint, {
+		admission: createGenerationAdmissionController(),
 		authenticate: authenticateTestRequest,
 		...dependencies,
 	});
@@ -66,7 +69,8 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-	vi.stubEnv("INFERENCE_API_KEYS", TEST_API_KEY_CONFIGURATION);
+	vi.stubEnv("GOOD_ENOUGH_DATABASE_PATH", ":memory:");
+	seedTestPersonalApiKey();
 });
 
 describe("endpoint policies", () => {
@@ -313,7 +317,7 @@ describe("authentication boundary", () => {
 		);
 
 		expect(response.status).toBe(500);
-		expect(await response.text()).not.toContain("INFERENCE_API_KEYS");
+		expect(await response.text()).not.toContain("GOOD_ENOUGH_DATABASE_PATH");
 		expect(fetchMock.mock).not.toHaveBeenCalled();
 		expect(metadata.events[0]).toMatchObject({
 			responseStatus: 500,
@@ -545,6 +549,26 @@ describe("generation admission", () => {
 });
 
 describe("server endpoint adapters", () => {
+	it("does not accept the removed static-key configuration", async () => {
+		const legacyStaticKey = "legacy-static-key-000000000000001";
+		vi.stubEnv(
+			"INFERENCE_API_KEYS",
+			JSON.stringify([{ id: "legacy", key: legacyStaticKey }]),
+		);
+		const fetchMock = createFetchMock(async () => new Response());
+		vi.stubGlobal("fetch", fetchMock.fetch);
+		vi.spyOn(console, "info").mockImplementation(() => {});
+
+		const response = await handleModelsRequest(
+			new Request("https://gateway.example/v1/models", {
+				headers: { authorization: `Bearer ${legacyStaticKey}` },
+			}),
+		);
+
+		expect(response.status).toBe(401);
+		expect(fetchMock.mock).not.toHaveBeenCalled();
+	});
+
 	it.each([
 		["GET", "models", handleModelsRequest],
 		["POST", "chat/completions", handleOpenAiChatCompletionsRequest],
@@ -972,11 +996,9 @@ describe("shared streaming transport", () => {
 	it("aborts upstream when the incoming request is aborted", async () => {
 		const admission = createGenerationAdmissionController();
 		const clientAbort = new AbortController();
-		let upstreamSignal: AbortSignal | undefined;
 		const fetchMock = createFetchMock(
 			(request) =>
 				new Promise<Response>((_resolve, reject) => {
-					upstreamSignal = request.signal;
 					request.signal.addEventListener("abort", () => {
 						reject(new DOMException("Aborted", "AbortError"));
 					});
@@ -1009,7 +1031,7 @@ describe("shared streaming transport", () => {
 			},
 			request_id: requestId,
 		});
-		expect(upstreamSignal?.aborted).toBe(true);
+		expect(fetchMock.mock).not.toHaveBeenCalled();
 		expect(metadata.events).toHaveLength(1);
 		expect(metadata.events[0]).toMatchObject({
 			outcome: "cancelled",
@@ -1313,6 +1335,36 @@ function createRecorder() {
 		events,
 		record: (metadata: InferenceRequestMetadata) => events.push(metadata),
 	};
+}
+
+function seedTestPersonalApiKey() {
+	const database = getAccountDatabase().sqlite;
+	const now = Date.now();
+	database
+		.prepare(
+			"insert or ignore into users (id, username, normalized_username, password_hash, role, status, must_change_password, created_at, updated_at, password_changed_at) values (?, ?, ?, ?, 'member', 'active', 0, ?, ?, ?)",
+		)
+		.run(
+			TEST_PRINCIPAL_ID,
+			"TestAccount",
+			"testaccount",
+			"unused-test-password-hash",
+			now,
+			now,
+			now,
+		);
+	database
+		.prepare(
+			"insert or ignore into api_keys (selector, user_id, prefix, secret_digest, created_at, expires_at, revoked_at) values (?, ?, ?, ?, ?, ?, null)",
+		)
+		.run(
+			TEST_SELECTOR,
+			TEST_PRINCIPAL_ID,
+			`ge_${TEST_SELECTOR}`,
+			createHash("sha256").update(TEST_SECRET).digest(),
+			now,
+			now + 24 * 60 * 60 * 1000,
+		);
 }
 
 function postRequest(path: string, body: string): Request {

@@ -1,8 +1,7 @@
-import {
-	type AdmissionSnapshot,
-	createGenerationAdmissionController,
-	type GenerationAdmissionController,
-	type GenerationLease,
+import type {
+	AdmissionSnapshot,
+	GenerationAdmissionController,
+	GenerationLease,
 } from "./admission";
 import type { ApiProtocol } from "./api-protocol";
 import type { AuthenticationDecision } from "./auth.server";
@@ -99,11 +98,11 @@ export interface GatewayEndpoint {
 export type GatewayAuthenticator = (
 	request: Request,
 	apiProtocol: ApiProtocol,
-) => AuthenticationDecision;
+) => AuthenticationDecision | Promise<AuthenticationDecision>;
 
 export interface GatewayDependencies {
 	authenticate: GatewayAuthenticator;
-	admission?: GenerationAdmissionController;
+	admission: GenerationAdmissionController;
 	llamaServerUrl?: string;
 	fetch?: typeof globalThis.fetch;
 	record?: MetadataRecorder;
@@ -176,7 +175,7 @@ export async function handleGatewayRequest(
 
 	let authentication: AuthenticationDecision;
 	try {
-		authentication = dependencies.authenticate(request, apiProtocol);
+		authentication = await dependencies.authenticate(request, apiProtocol);
 	} catch {
 		authentication = { status: "configuration_error" };
 	}
@@ -201,6 +200,19 @@ export async function handleGatewayRequest(
 			status: 401,
 			code: "authentication_failed",
 			message: "Authentication failed.",
+			requestId,
+		});
+	}
+
+	const clientSignal = dependencies.clientSignal ?? request.signal;
+	if (clientSignal.aborted) {
+		finalize("cancelled", 499);
+		return createProtocolErrorResponse({
+			protocol: apiProtocol,
+			status: 499,
+			statusText: "Client Closed Request",
+			code: "client_cancelled",
+			message: "Request was cancelled before a response was available.",
 			requestId,
 		});
 	}
@@ -241,9 +253,7 @@ export async function handleGatewayRequest(
 	}
 
 	if (endpoint.kind === "generation") {
-		const admission =
-			dependencies.admission ?? createGenerationAdmissionController();
-		const decision = admission.tryAcquire();
+		const decision = dependencies.admission.tryAcquire();
 		if (!decision.admitted) {
 			admissionStatus = "rejected";
 			admissionSnapshot = decision.snapshot;
@@ -265,7 +275,6 @@ export async function handleGatewayRequest(
 		generationLease = decision.lease;
 	}
 
-	const clientSignal = dependencies.clientSignal ?? request.signal;
 	const abortController = new AbortController();
 	const abortUpstream = () => abortController.abort(clientSignal.reason);
 	if (clientSignal.aborted) {
@@ -273,7 +282,6 @@ export async function handleGatewayRequest(
 	} else {
 		clientSignal.addEventListener("abort", abortUpstream, { once: true });
 	}
-
 	const cleanupAbortListener = () => {
 		clientSignal.removeEventListener("abort", abortUpstream);
 	};
@@ -503,5 +511,5 @@ function sanitizeHeaders(
 }
 
 function elapsed(now: () => number, startedAtMs: number): number {
-	return Math.max(0, Math.round((now() - startedAtMs) * 1000) / 1000);
+	return Math.round((now() - startedAtMs) * 1000) / 1000;
 }
