@@ -10,8 +10,7 @@ export function applyAnthropicRequestIdHeaders(
 export function createAnthropicErrorBody(
 	status: number,
 	message: string,
-	requestId: string,
-	includeRequestId: boolean,
+	requestId?: string,
 ): JsonObject {
 	const body: JsonObject = {
 		type: "error",
@@ -20,7 +19,7 @@ export function createAnthropicErrorBody(
 			message,
 		},
 	};
-	if (includeRequestId) {
+	if (requestId !== undefined) {
 		body.request_id = requestId;
 	}
 	return body;
