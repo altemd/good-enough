@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { ClientOnly, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
@@ -82,8 +82,12 @@ function ApiKeysPage() {
 						{keys.map((key) => (
 							<tr className="border-t" key={key.prefix}>
 								<td className="py-3 font-mono">{key.prefix}</td>
-								<td>{formatDate(key.createdAt)}</td>
-								<td>{formatDate(key.expiresAt)}</td>
+								<td>
+									<LocalDateTime value={key.createdAt} />
+								</td>
+								<td>
+									<LocalDateTime value={key.expiresAt} />
+								</td>
 								<td>{key.state}</td>
 								<td>
 									{key.state === "active" ? (
@@ -108,9 +112,25 @@ function ApiKeysPage() {
 	);
 }
 
-function formatDate(value: number) {
+function LocalDateTime({ value }: { value: number }) {
+	const instant = new Date(value);
+	const dateTime = instant.toISOString();
+	return (
+		<ClientOnly
+			fallback={<time dateTime={dateTime}>{formatUtcDateTime(dateTime)}</time>}
+		>
+			<time dateTime={dateTime}>{formatLocalDateTime(instant)}</time>
+		</ClientOnly>
+	);
+}
+
+function formatUtcDateTime(isoDate: string) {
+	return `${isoDate.slice(0, 10)} ${isoDate.slice(11, 16)} UTC`;
+}
+
+function formatLocalDateTime(value: Date) {
 	return new Intl.DateTimeFormat(undefined, {
 		dateStyle: "medium",
 		timeStyle: "short",
-	}).format(new Date(value));
+	}).format(value);
 }
