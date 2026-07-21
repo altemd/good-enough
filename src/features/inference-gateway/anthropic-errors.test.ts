@@ -9,7 +9,6 @@ describe("Anthropic authentication errors", () => {
 				401,
 				"Authentication failed.",
 				"request-anthropic-auth",
-				true,
 			),
 		).toEqual({
 			type: "error",
@@ -18,6 +17,18 @@ describe("Anthropic authentication errors", () => {
 				message: "Authentication failed.",
 			},
 			request_id: "request-anthropic-auth",
+		});
+	});
+
+	it("omits request IDs from terminal stream errors", () => {
+		expect(
+			createAnthropicErrorBody(502, "Inference stream ended unexpectedly."),
+		).toEqual({
+			type: "error",
+			error: {
+				type: "api_error",
+				message: "Inference stream ended unexpectedly.",
+			},
 		});
 	});
 });

@@ -1,81 +1,72 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { authenticateConfiguredApiKey } from "./auth.server";
+import { authenticateGatewayApiKey } from "./auth.server";
 
-const OPENAI_KEY = "openai-pilot-key-0000000000000001";
-const ANTHROPIC_KEY = "anthropic-pilot-key-0000000000001";
-const CONFIGURATION = JSON.stringify([
-	{ id: "openai-pilot", key: OPENAI_KEY },
-	{ id: "anthropic-pilot", key: ANTHROPIC_KEY },
-]);
+const PERSONAL_KEY = `ge_${"s".repeat(16)}_${"v".repeat(43)}`;
 
-describe("configured API-key authentication", () => {
-	it("authenticates OpenAI bearer credentials", () => {
+describe("personal API-key authentication", () => {
+	it("passes an OpenAI bearer credential to the account verifier", async () => {
+		const verify = vi.fn(() => ({
+			status: "authenticated" as const,
+			principalId: "account-id",
+		}));
 		expect(
-			authenticateConfiguredApiKey(
-				request({ authorization: `Bearer ${OPENAI_KEY}` }),
+			await authenticateGatewayApiKey(
+				request({ authorization: `Bearer ${PERSONAL_KEY}` }),
 				"openai",
-				CONFIGURATION,
+				verify,
 			),
-		).toEqual({ status: "authenticated", principalId: "openai-pilot" });
+		).toEqual({ status: "authenticated", principalId: "account-id" });
+		expect(verify).toHaveBeenCalledWith(PERSONAL_KEY);
 	});
 
-	it("authenticates Anthropic x-api-key credentials", () => {
+	it("passes an Anthropic x-api-key credential to the account verifier", async () => {
+		const verify = vi.fn(() => ({
+			status: "authenticated" as const,
+			principalId: "account-id",
+		}));
 		expect(
-			authenticateConfiguredApiKey(
-				request({ "x-api-key": ANTHROPIC_KEY }),
+			await authenticateGatewayApiKey(
+				request({ "x-api-key": PERSONAL_KEY }),
 				"anthropic",
-				CONFIGURATION,
+				verify,
 			),
-		).toEqual({ status: "authenticated", principalId: "anthropic-pilot" });
+		).toEqual({ status: "authenticated", principalId: "account-id" });
+		expect(verify).toHaveBeenCalledWith(PERSONAL_KEY);
 	});
 
 	it.each([
 		["missing", {}],
-		["malformed bearer", { authorization: `Token ${OPENAI_KEY}` }],
-		["unknown", { authorization: `Bearer ${"x".repeat(48)}` }],
-		["wrong protocol header", { "x-api-key": OPENAI_KEY }],
-	] as const)("rejects %s OpenAI credentials", (_case, headers) => {
+		["malformed bearer", { authorization: `Token ${PERSONAL_KEY}` }],
+		["wrong protocol header", { "x-api-key": PERSONAL_KEY }],
+	] as const)("rejects %s OpenAI credentials before lookup", async (_case, headers) => {
+		const verify = vi.fn();
 		expect(
-			authenticateConfiguredApiKey(request(headers), "openai", CONFIGURATION),
+			await authenticateGatewayApiKey(request(headers), "openai", verify),
 		).toEqual({ status: "rejected" });
+		expect(verify).not.toHaveBeenCalled();
 	});
 
-	it("rejects an OpenAI bearer credential on the Anthropic route", () => {
+	it("rejects an OpenAI bearer credential on the Anthropic route", async () => {
+		const verify = vi.fn();
 		expect(
-			authenticateConfiguredApiKey(
-				request({ authorization: `Bearer ${ANTHROPIC_KEY}` }),
+			await authenticateGatewayApiKey(
+				request({ authorization: `Bearer ${PERSONAL_KEY}` }),
 				"anthropic",
-				CONFIGURATION,
+				verify,
 			),
 		).toEqual({ status: "rejected" });
+		expect(verify).not.toHaveBeenCalled();
 	});
 
-	it.each([
-		["missing", undefined],
-		["malformed JSON", "{"],
-		["empty list", "[]"],
-		["short key", JSON.stringify([{ id: "pilot", key: "short" }])],
-		[
-			"duplicate principal",
-			JSON.stringify([
-				{ id: "pilot", key: "a".repeat(32) },
-				{ id: "pilot", key: "b".repeat(32) },
-			]),
-		],
-		[
-			"duplicate key",
-			JSON.stringify([
-				{ id: "pilot-a", key: "a".repeat(32) },
-				{ id: "pilot-b", key: "a".repeat(32) },
-			]),
-		],
-	] as const)("fails closed for %s configuration", (_case, configuration) => {
+	it("maps database failures to an authentication configuration error", async () => {
 		expect(
-			authenticateConfiguredApiKey(
-				request({ authorization: `Bearer ${OPENAI_KEY}` }),
+			await authenticateGatewayApiKey(
+				request({ authorization: `Bearer ${PERSONAL_KEY}` }),
 				"openai",
-				configuration,
+				() => {
+					throw new Error("private database detail");
+				},
 			),
 		).toEqual({ status: "configuration_error" });
 	});

@@ -1,15 +1,23 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 const HOST = "127.0.0.1";
 const PRIVATE_PROMPT = "private-prompt-smoke-sentinel";
 const PRIVATE_COMPLETION = "private-completion-smoke-sentinel";
 const PRIVATE_TOOL_ARGUMENT = "private-tool-argument-smoke-sentinel";
 const PRIVATE_UPSTREAM_ERROR = "private-upstream-error-smoke-sentinel";
-const PRIVATE_PRINCIPAL_ID = "private-pilot-principal-sentinel";
-const PRIVATE_API_KEY = "private-runtime-key-000000000000001";
+const DATABASE_PRINCIPAL_ID = "private-database-principal-sentinel";
+const DATABASE_API_KEY = `ge_${"s".repeat(16)}_${"v".repeat(43)}`;
+const EXPIRED_API_KEY = `ge_${"e".repeat(16)}_${"x".repeat(43)}`;
+const REVOKED_API_KEY = `ge_${"r".repeat(16)}_${"y".repeat(43)}`;
+const DISABLED_API_KEY = `ge_${"d".repeat(16)}_${"z".repeat(43)}`;
 const UNRELATED_NUMBER = "987654321";
 const REQUEST_BODY = JSON.stringify({
 	model: "smoke-model",
@@ -23,6 +31,8 @@ const mockState = {
 };
 
 let application;
+const runtimeDirectory = mkdtempSync(join(tmpdir(), "good-enough-runtime-"));
+const databasePath = join(runtimeDirectory, "accounts.sqlite");
 let applicationStdout = "";
 let applicationStderr = "";
 let shuttingDown = false;
@@ -114,6 +124,7 @@ const shutdown = async () => {
 			await once(application, "exit");
 		}
 	}
+	rmSync(runtimeDirectory, { recursive: true, force: true });
 
 	if (mockServer.listening) {
 		await new Promise((resolve, reject) => {
@@ -141,9 +152,10 @@ try {
 		env: {
 			...process.env,
 			HOST,
-			INFERENCE_API_KEYS: JSON.stringify([
-				{ id: PRIVATE_PRINCIPAL_ID, key: PRIVATE_API_KEY },
-			]),
+			ACCOUNT_BOOTSTRAP_TOKEN:
+				"runtime-bootstrap-token-that-is-at-least-32-bytes",
+			APP_ORIGIN: applicationOrigin,
+			GOOD_ENOUGH_DATABASE_PATH: databasePath,
 			LLAMA_SERVER_URL: `http://${HOST}:${mockPort}`,
 			PORT: String(applicationPort),
 		},
@@ -159,8 +171,8 @@ try {
 	});
 
 	const requestIds = [];
-	const openAiHeaders = { authorization: `Bearer ${PRIVATE_API_KEY}` };
-	const anthropicHeaders = { "x-api-key": PRIVATE_API_KEY };
+	const openAiHeaders = { authorization: `Bearer ${DATABASE_API_KEY}` };
+	const anthropicHeaders = { "x-api-key": DATABASE_API_KEY };
 	const recordResponse = (response, protocol = "openai") => {
 		const requestIdHeader =
 			protocol === "anthropic" ? "request-id" : "x-request-id";
@@ -176,13 +188,55 @@ try {
 		return response;
 	};
 
-	const modelsResponse = recordResponse(
+	const readinessResponse = recordResponse(
 		await waitForServer(`${applicationOrigin}/v1/models`, {
 			headers: openAiHeaders,
 		}),
 	);
-	assert.equal(modelsResponse.status, 200);
-	assert.deepEqual(await modelsResponse.json(), { object: "list", data: [] });
+	assert.equal(readinessResponse.status, 401);
+	seedDatabaseKeys(databasePath);
+
+	const databaseModelsResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/models`, {
+			headers: { authorization: `Bearer ${DATABASE_API_KEY}` },
+		}),
+	);
+	assert.equal(databaseModelsResponse.status, 200);
+	assert.deepEqual(await databaseModelsResponse.json(), {
+		object: "list",
+		data: [],
+	});
+	const databaseAnthropicResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/messages`, {
+			headers: { "x-api-key": DATABASE_API_KEY },
+			method: "PUT",
+		}),
+		"anthropic",
+	);
+	assert.equal(databaseAnthropicResponse.status, 405);
+
+	for (const rejectedKey of [
+		EXPIRED_API_KEY,
+		REVOKED_API_KEY,
+		DISABLED_API_KEY,
+	]) {
+		const rejectedResponse = recordResponse(
+			await fetch(`${applicationOrigin}/v1/models`, {
+				headers: { authorization: `Bearer ${rejectedKey}` },
+			}),
+		);
+		assert.equal(rejectedResponse.status, 401);
+		assert.equal(mockState.generationPaths.length, 0);
+	}
+	const expiredAnthropicResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/messages`, {
+			headers: { "x-api-key": EXPIRED_API_KEY },
+			method: "PUT",
+		}),
+		"anthropic",
+	);
+	assert.equal(expiredAnthropicResponse.status, 401);
+	assert.equal(mockState.generationPaths.length, 0);
 
 	const unauthenticatedOpenAiResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/chat/completions`, {
@@ -395,7 +449,7 @@ try {
 	const authenticationRejections = metadataEvents.filter(
 		(event) => event.rejectionReason === "authentication_failed",
 	);
-	assert.equal(authenticationRejections.length, 2);
+	assert.equal(authenticationRejections.length, 7);
 	for (const event of authenticationRejections) {
 		assert.equal(event.responseStatus, 401);
 		assert.equal(event.upstreamStatus, null);
@@ -409,8 +463,11 @@ try {
 		PRIVATE_COMPLETION,
 		PRIVATE_TOOL_ARGUMENT,
 		PRIVATE_UPSTREAM_ERROR,
-		PRIVATE_PRINCIPAL_ID,
-		PRIVATE_API_KEY,
+		DATABASE_PRINCIPAL_ID,
+		DATABASE_API_KEY,
+		EXPIRED_API_KEY,
+		REVOKED_API_KEY,
+		DISABLED_API_KEY,
 		UNRELATED_NUMBER,
 	]) {
 		assert.equal(
@@ -456,6 +513,92 @@ function getServerPort(server) {
 	const address = server.address();
 	assert.ok(address && typeof address !== "string");
 	return address.port;
+}
+
+function seedDatabaseKeys(path) {
+	const database = new DatabaseSync(path);
+	const now = Date.now();
+	const insertUser = database.prepare(
+		"insert into users (id, username, normalized_username, password_hash, role, status, must_change_password, created_at, updated_at, password_changed_at) values (?, ?, ?, ?, 'member', ?, 0, ?, ?, ?)",
+	);
+	insertUser.run(
+		DATABASE_PRINCIPAL_ID,
+		"DatabaseUser",
+		"databaseuser",
+		"unused-runtime-password-hash",
+		"active",
+		now,
+		now,
+		now,
+	);
+	insertUser.run(
+		"disabled-database-user",
+		"DisabledUser",
+		"disableduser",
+		"unused-runtime-password-hash",
+		"disabled",
+		now,
+		now,
+		now,
+	);
+	const insertKey = database.prepare(
+		"insert into api_keys (selector, user_id, prefix, secret_digest, created_at, expires_at, revoked_at) values (?, ?, ?, ?, ?, ?, ?)",
+	);
+	insertRuntimeKey(
+		insertKey,
+		DATABASE_API_KEY,
+		DATABASE_PRINCIPAL_ID,
+		now,
+		now + 60_000,
+		null,
+	);
+	insertRuntimeKey(
+		insertKey,
+		EXPIRED_API_KEY,
+		DATABASE_PRINCIPAL_ID,
+		now - 60_000,
+		now,
+		null,
+	);
+	insertRuntimeKey(
+		insertKey,
+		REVOKED_API_KEY,
+		DATABASE_PRINCIPAL_ID,
+		now,
+		now + 60_000,
+		now,
+	);
+	insertRuntimeKey(
+		insertKey,
+		DISABLED_API_KEY,
+		"disabled-database-user",
+		now,
+		now + 60_000,
+		null,
+	);
+	database.close();
+}
+
+function insertRuntimeKey(
+	statement,
+	apiKey,
+	userId,
+	createdAt,
+	expiresAt,
+	revokedAt,
+) {
+	const match = /^ge_([A-Za-z0-9_-]{16})_([A-Za-z0-9_-]{43})$/.exec(apiKey);
+	assert.ok(match);
+	const [, selector, secret] = match;
+	statement.run(
+		selector,
+		userId,
+		`ge_${selector}`,
+		createHash("sha256").update(secret).digest(),
+		createdAt,
+		expiresAt,
+		revokedAt,
+	);
 }
 
 function listen(server, port = 0) {

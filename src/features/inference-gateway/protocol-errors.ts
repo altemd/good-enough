@@ -150,7 +150,6 @@ export function createProtocolStreamErrorEvent(
 		502,
 		"upstream_stream_error",
 		"Inference stream ended unexpectedly.",
-		"unused-for-stream-events",
 	);
 	return encoder.encode(`\n\nevent: error\ndata: ${JSON.stringify(body)}\n\n`);
 }
@@ -174,17 +173,12 @@ function createProtocolErrorBody(
 	status: number,
 	code: ProtocolErrorCode,
 	message: string,
-	requestId: string,
+	requestId?: string,
 ): JsonObject {
 	if (protocol === "openai") {
 		return createOpenAiErrorBody(status, code, message);
 	}
-	return createAnthropicErrorBody(
-		status,
-		message,
-		requestId,
-		code !== "upstream_stream_error",
-	);
+	return createAnthropicErrorBody(status, message, requestId);
 }
 
 async function readBoundedBody(

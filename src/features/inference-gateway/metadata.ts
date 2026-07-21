@@ -97,7 +97,7 @@ class SseMetadataObserver implements StreamMetadataObserver {
 
 		while (true) {
 			const boundary = /\r?\n\r?\n/.exec(pending);
-			if (!boundary || boundary.index === undefined) {
+			if (!boundary) {
 				break;
 			}
 
