@@ -5,6 +5,12 @@ import {
 	requireString,
 	validateExactObject,
 } from "./account-function-input.ts";
+import { runMutation } from "./account-function-runtime.server.ts";
+import {
+	createPersonalApiKey as createKey,
+	listPersonalApiKeys,
+	revokePersonalApiKey as revokeKey,
+} from "./personal-api-keys.server.ts";
 
 const unrestrictedAccount = authorizeAccountFunction("unrestricted");
 
@@ -14,52 +20,21 @@ interface RevokeKeyInput {
 
 export const getPersonalApiKeys = createServerFn({ method: "GET" })
 	.middleware([unrestrictedAccount])
-	.handler(async ({ context }) => {
-		const { runAuthorizedAccountRead } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runAuthorizedAccountRead(
-			context.accountAuthorization,
-			async (account) => {
-				const { listPersonalApiKeys } = await import(
-					"./personal-api-keys.server.ts"
-				);
-				return listPersonalApiKeys(account);
-			},
-		);
-	});
+	.handler(async ({ context }) => listPersonalApiKeys(context.account));
 
 export const createPersonalApiKey = createServerFn({ method: "POST" })
 	.middleware([unrestrictedAccount])
 	.validator(validateEmptyInput)
-	.handler(async ({ context }) => {
-		const { runAuthorizedAccountMutation } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runAuthorizedAccountMutation(
-			context.accountAuthorization,
-			async (account) => {
-				const personalApiKeys = await import("./personal-api-keys.server.ts");
-				return personalApiKeys.createPersonalApiKey(account);
-			},
-		);
-	});
+	.handler(async ({ context }) =>
+		runMutation(() => createKey(context.account)),
+	);
 
 export const revokePersonalApiKey = createServerFn({ method: "POST" })
 	.middleware([unrestrictedAccount])
 	.validator(validateRevokeKeyInput)
-	.handler(async ({ context, data }) => {
-		const { runAuthorizedAccountMutation } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runAuthorizedAccountMutation(
-			context.accountAuthorization,
-			async (account) => {
-				const personalApiKeys = await import("./personal-api-keys.server.ts");
-				return personalApiKeys.revokePersonalApiKey(account, data.prefix);
-			},
-		);
-	});
+	.handler(async ({ context, data }) =>
+		runMutation(() => revokeKey(context.account, data.prefix)),
+	);
 
 function validateEmptyInput(value: unknown): Record<string, never> {
 	return validateExactObject(value, [], () => ({}));

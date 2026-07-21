@@ -1,10 +1,29 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import {
+	bootstrapAdministrator,
+	changePassword,
+	getSetupState,
+	login,
+	registerMember,
+} from "./account-access.server.ts";
 import { authorizeAccountFunction } from "./account-authorization.middleware.ts";
 import {
 	requireString,
 	validateExactObject,
 } from "./account-function-input.ts";
+import {
+	logoutCurrentSession,
+	readCurrentAccount,
+	runAccountRead,
+	runMutation,
+	setBrowserSessionCookie,
+} from "./account-function-runtime.server.ts";
+import {
+	readAppOrigin,
+	readBootstrapToken,
+	readRegistrationEnabled,
+} from "./config.server.ts";
 
 const authenticatedAccount = authorizeAccountFunction("authenticated");
 
@@ -25,13 +44,6 @@ interface ChangePasswordInput {
 export const getAccountEntryState = createServerFn({ method: "GET" }).handler(
 	async () => {
 		try {
-			const [
-				{ getSetupState },
-				{ readAppOrigin, readBootstrapToken, readRegistrationEnabled },
-			] = await Promise.all([
-				import("./account-access.server.ts"),
-				import("./config.server.ts"),
-			]);
 			readAppOrigin();
 			const setup = getSetupState();
 			if (setup.setupRequired && readBootstrapToken() === null) {
@@ -53,83 +65,38 @@ export const getAccountEntryState = createServerFn({ method: "GET" }).handler(
 );
 
 export const getCurrentAccount = createServerFn({ method: "GET" }).handler(
-	async () => {
-		const { readCurrentAccount, runAccountRead } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runAccountRead(readCurrentAccount);
-	},
+	async () => runAccountRead(readCurrentAccount),
 );
 
 export const bootstrapAccount = createServerFn({ method: "POST" })
 	.validator(validateBootstrapInput)
-	.handler(async ({ data }) => {
-		const { runMutation } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runMutation(async () => {
-			const { bootstrapAdministrator } = await import(
-				"./account-access.server.ts"
-			);
-			return bootstrapAdministrator(data);
-		});
-	});
+	.handler(async ({ data }) => runMutation(() => bootstrapAdministrator(data)));
 
 export const registerAccount = createServerFn({ method: "POST" })
 	.validator(validateCredentialsInput)
-	.handler(async ({ data }) => {
-		const { runMutation } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runMutation(async () => {
-			const { registerMember } = await import("./account-access.server.ts");
-			return registerMember(data);
-		});
-	});
+	.handler(async ({ data }) => runMutation(() => registerMember(data)));
 
 export const loginAccount = createServerFn({ method: "POST" })
 	.validator(validateCredentialsInput)
 	.handler(async ({ data }) => {
-		const { runMutation, setBrowserSessionCookie } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runMutation(async () => {
-			const [{ login }, { readAppOrigin }] = await Promise.all([
-				import("./account-access.server.ts"),
-				import("./config.server.ts"),
-			]);
+		return runMutation(() => {
 			readAppOrigin();
 			return login(data);
 		}, setBrowserSessionCookie);
 	});
 
 export const logoutAccount = createServerFn({ method: "POST" }).handler(
-	async () => {
-		const { logoutCurrentSession } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return logoutCurrentSession();
-	},
+	async () => logoutCurrentSession(),
 );
 
 export const changeAccountPassword = createServerFn({ method: "POST" })
 	.middleware([authenticatedAccount])
 	.validator(validateChangePasswordInput)
 	.handler(async ({ context, data }) => {
-		const { runAuthorizedAccountMutation, setBrowserSessionCookie } =
-			await import("./account-function-runtime.server.ts");
-		return runAuthorizedAccountMutation(
-			context.accountAuthorization,
-			async (account) => {
-				const [{ changePassword }, { readAppOrigin }] = await Promise.all([
-					import("./account-access.server.ts"),
-					import("./config.server.ts"),
-				]);
-				readAppOrigin();
-				return changePassword(account, data);
-			},
-			setBrowserSessionCookie,
-		);
+		return runMutation(() => {
+			readAppOrigin();
+			return changePassword(context.account, data);
+		}, setBrowserSessionCookie);
 	});
 
 function validateCredentialsInput(value: unknown): CredentialsInput {

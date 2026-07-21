@@ -119,48 +119,7 @@ export function deleteUserSessions(
 	database.db.delete(sessions).where(eq(sessions.userId, userId)).run();
 }
 
-export function readSessionTokenFromCookie(
-	cookieHeader: string | null,
-): string | null {
-	if (!cookieHeader) {
-		return null;
-	}
-	const names = new Set([SECURE_COOKIE_NAME, DEVELOPMENT_COOKIE_NAME]);
-	for (const part of cookieHeader.split(/;\s*/u)) {
-		const equals = part.indexOf("=");
-		if (equals > 0 && names.has(part.slice(0, equals))) {
-			return part.slice(equals + 1);
-		}
-	}
-	return null;
-}
-
-export function createSessionCookie(
-	token: string,
-	expiresAt: number,
-	now = Date.now(),
-) {
-	const { name, secure } = sessionCookiePolicy();
-	return [
-		`${name}=${token}`,
-		"HttpOnly",
-		secure ? "Secure" : null,
-		"SameSite=Lax",
-		"Path=/",
-		`Max-Age=${Math.max(0, Math.floor((expiresAt - now) / 1000))}`,
-	]
-		.filter(Boolean)
-		.join("; ");
-}
-
-export function createExpiredSessionCookies() {
-	return [
-		`${SECURE_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`,
-		`${DEVELOPMENT_COOKIE_NAME}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
-	];
-}
-
-function sessionCookiePolicy() {
+export function getSessionCookiePolicy() {
 	const origin = readAppOrigin();
 	if (origin.protocol === "https:") {
 		return { name: SECURE_COOKIE_NAME, secure: true };

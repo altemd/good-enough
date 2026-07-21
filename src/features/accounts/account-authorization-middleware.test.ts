@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { authorizeAccountFunction } from "./account-authorization.middleware.ts";
 import type { CurrentAccount } from "./account-contract.ts";
 
 const runtime = vi.hoisted(() => ({
 	readCurrentAccount: vi.fn(),
 }));
+const startServer = vi.hoisted(() => ({
+	setResponseStatus: vi.fn(),
+}));
 
 vi.mock("./account-function-runtime.server.ts", () => runtime);
+vi.mock("@tanstack/react-start/server", () => startServer);
 
 const administrator: CurrentAccount = {
 	id: "administrator-id",
@@ -20,49 +25,53 @@ beforeEach(() => {
 });
 
 describe("account authorization middleware", () => {
-	it("injects a granted authorization into server-only context", async () => {
+	it("admits a granted account into server-only context", async () => {
 		runtime.readCurrentAccount.mockResolvedValue(administrator);
+		const { execution, next } = executeMiddleware("administrator");
 
-		const context = await executeMiddleware("administrator");
-
-		expect(context).toEqual({
-			accountAuthorization: { status: "granted", account: administrator },
+		await expect(execution).resolves.toEqual({
+			context: { account: administrator },
 		});
+		expect(next).toHaveBeenCalledOnce();
 		expect(runtime.readCurrentAccount).toHaveBeenCalledOnce();
+		expect(startServer.setResponseStatus).not.toHaveBeenCalled();
 	});
 
-	it("injects a denial without exposing its reason", async () => {
+	it("stops denied requests before the handler", async () => {
 		runtime.readCurrentAccount.mockResolvedValue({
 			...administrator,
 			mustChangePassword: true,
 		});
+		const { execution, next } = executeMiddleware("administrator");
 
-		expect(await executeMiddleware("administrator")).toEqual({
-			accountAuthorization: { status: "denied" },
-		});
+		await expect(execution).rejects.toThrow("Forbidden");
+		expect(next).not.toHaveBeenCalled();
+		expect(startServer.setResponseStatus).toHaveBeenCalledOnce();
+		expect(startServer.setResponseStatus).toHaveBeenCalledWith(403);
 	});
 
-	it("converts session lookup errors to a sanitized failure", async () => {
+	it("stops lookup failures with a sanitized error", async () => {
 		runtime.readCurrentAccount.mockRejectedValue(
 			new Error("synthetic private database failure"),
 		);
+		const { execution, next } = executeMiddleware("authenticated");
 
-		expect(await executeMiddleware("authenticated")).toEqual({
-			accountAuthorization: { status: "failure" },
-		});
+		await expect(execution).rejects.toThrow("Account service unavailable");
+		expect(next).not.toHaveBeenCalled();
+		expect(startServer.setResponseStatus).toHaveBeenCalledOnce();
+		expect(startServer.setResponseStatus).toHaveBeenCalledWith(500);
 	});
 });
 
-async function executeMiddleware(
+function executeMiddleware(
 	requirement: "authenticated" | "unrestricted" | "administrator",
 ) {
 	const middleware = authorizeAccountFunction(requirement);
 	const server = middleware.options.server;
 	if (!server) throw new Error("Missing server middleware");
 	const next = vi.fn(async (value: { context: unknown }) => value);
-
-	await server({ next } as never);
-
-	expect(next).toHaveBeenCalledOnce();
-	return next.mock.calls[0]?.[0].context;
+	return {
+		next,
+		execution: server({ next } as never),
+	};
 }

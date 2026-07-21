@@ -1,21 +1,26 @@
 import "@tanstack/react-start/server-only";
 
-import type { AccountAuthorization } from "./account-authorization.middleware.ts";
+import {
+	deleteCookie,
+	getCookie,
+	setCookie,
+	setResponseHeader,
+	setResponseStatus,
+} from "@tanstack/react-start/server";
+
 import type {
 	AccountMutationResult,
 	CurrentAccount,
 } from "./account-contract.ts";
 import {
-	createExpiredSessionCookies,
-	createSessionCookie,
 	deleteBrowserSession,
+	getSessionCookiePolicy,
 	readBrowserSession,
-	readSessionTokenFromCookie,
 } from "./sessions.server.ts";
 
 export async function readCurrentSession() {
-	const { getRequestHeader } = await import("@tanstack/react-start/server");
-	const token = readSessionTokenFromCookie(getRequestHeader("cookie") ?? null);
+	const { name } = getSessionCookiePolicy();
+	const token = getCookie(name) ?? null;
 	return readBrowserSession(token);
 }
 
@@ -44,56 +49,27 @@ export async function runAccountRead<T>(
 	try {
 		return await operation();
 	} catch {
-		const { setResponseStatus } = await import("@tanstack/react-start/server");
 		setResponseStatus(500);
 		throw new Error("Account service unavailable");
 	}
-}
-
-export async function runAuthorizedAccountRead<T>(
-	authorization: AccountAuthorization,
-	operation: (account: CurrentAccount) => T | Promise<T>,
-): Promise<T | null> {
-	return runAccountRead(() => {
-		if (authorization.status === "failure") {
-			throw new Error("Account authorization unavailable");
-		}
-		if (authorization.status === "denied") return null;
-		return operation(authorization.account);
-	});
-}
-
-export async function runAuthorizedAccountMutation<T>(
-	authorization: AccountAuthorization,
-	operation: (
-		account: CurrentAccount,
-	) => AccountMutationResult<T> | Promise<AccountMutationResult<T>>,
-	onSuccess?: (value: T) => void | Promise<void>,
-): Promise<AccountMutationResult<T>> {
-	return runMutation(() => {
-		if (authorization.status === "failure") {
-			throw new Error("Account authorization unavailable");
-		}
-		if (authorization.status === "denied") {
-			return { ok: false, code: "forbidden" };
-		}
-		return operation(authorization.account);
-	}, onSuccess);
 }
 
 export async function setBrowserSessionCookie(session: {
 	token: string;
 	expiresAt: number;
 }) {
-	const { setResponseHeader } = await import("@tanstack/react-start/server");
-	setResponseHeader(
-		"Set-Cookie",
-		createSessionCookie(session.token, session.expiresAt),
-	);
+	const policy = getSessionCookiePolicy();
+	setCookie(policy.name, session.token, {
+		httpOnly: true,
+		secure: policy.secure,
+		sameSite: "lax",
+		path: "/",
+		maxAge: Math.max(0, Math.floor((session.expiresAt - Date.now()) / 1000)),
+	});
 }
 
 export async function logoutCurrentSession() {
-	const { setResponseHeader } = await import("@tanstack/react-start/server");
+	const policy = getSessionCookiePolicy();
 	try {
 		const accountSession = await readCurrentSession();
 		if (accountSession) {
@@ -102,15 +78,17 @@ export async function logoutCurrentSession() {
 	} catch {
 		// Clearing the browser cookie remains safe if persistence is unavailable.
 	}
-	setResponseHeader("Set-Cookie", createExpiredSessionCookies());
+	deleteCookie(policy.name, {
+		httpOnly: true,
+		secure: policy.secure,
+		sameSite: "lax",
+		path: "/",
+	});
 	return { ok: true as const, value: {} };
 }
 
 async function applyResultStatus(result: AccountMutationResult<unknown>) {
 	if (!result.ok) {
-		const { setResponseHeader, setResponseStatus } = await import(
-			"@tanstack/react-start/server"
-		);
 		if (result.retryAfterSeconds !== undefined) {
 			setResponseHeader("Retry-After", String(result.retryAfterSeconds));
 		}

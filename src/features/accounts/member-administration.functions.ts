@@ -5,6 +5,12 @@ import {
 	requireString,
 	validateExactObject,
 } from "./account-function-input.ts";
+import { runMutation } from "./account-function-runtime.server.ts";
+import {
+	issueTemporaryPassword,
+	listMembers,
+	setMemberDisabled as setDisabled,
+} from "./member-administration.server.ts";
 
 const administratorAccount = authorizeAccountFunction("administrator");
 
@@ -18,60 +24,23 @@ interface SetMemberDisabledInput extends MemberInput {
 
 export const getMembers = createServerFn({ method: "GET" })
 	.middleware([administratorAccount])
-	.handler(async ({ context }) => {
-		const { runAuthorizedAccountRead } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runAuthorizedAccountRead(
-			context.accountAuthorization,
-			async (account) => {
-				const { listMembers } = await import(
-					"./member-administration.server.ts"
-				);
-				return listMembers(account);
-			},
-		);
-	});
+	.handler(async ({ context }) => listMembers(context.account));
 
 export const setMemberDisabled = createServerFn({ method: "POST" })
 	.middleware([administratorAccount])
 	.validator(validateSetMemberDisabledInput)
-	.handler(async ({ context, data }) => {
-		const { runAuthorizedAccountMutation } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runAuthorizedAccountMutation(
-			context.accountAuthorization,
-			async (account) => {
-				const administration = await import(
-					"./member-administration.server.ts"
-				);
-				return administration.setMemberDisabled(
-					account,
-					data.memberId,
-					data.disabled,
-				);
-			},
-		);
-	});
+	.handler(async ({ context, data }) =>
+		runMutation(() =>
+			setDisabled(context.account, data.memberId, data.disabled),
+		),
+	);
 
 export const issueMemberTemporaryPassword = createServerFn({ method: "POST" })
 	.middleware([administratorAccount])
 	.validator(validateMemberInput)
-	.handler(async ({ context, data }) => {
-		const { runAuthorizedAccountMutation } = await import(
-			"./account-function-runtime.server.ts"
-		);
-		return runAuthorizedAccountMutation(
-			context.accountAuthorization,
-			async (account) => {
-				const { issueTemporaryPassword } = await import(
-					"./member-administration.server.ts"
-				);
-				return issueTemporaryPassword(account, data.memberId);
-			},
-		);
-	});
+	.handler(async ({ context, data }) =>
+		runMutation(() => issueTemporaryPassword(context.account, data.memberId)),
+	);
 
 function validateMemberInput(value: unknown): MemberInput {
 	return validateExactObject(value, ["memberId"], (object) => ({

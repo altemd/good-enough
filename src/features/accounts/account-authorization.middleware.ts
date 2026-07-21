@@ -1,6 +1,8 @@
 import { createMiddleware } from "@tanstack/react-start";
+import { setResponseStatus } from "@tanstack/react-start/server";
 
 import type { CurrentAccount } from "./account-contract.ts";
+import { readCurrentAccount } from "./account-function-runtime.server.ts";
 
 export type AccountAuthorizationRequirement =
 	| "authenticated"
@@ -33,9 +35,6 @@ export function authorizeAccountFunction(
 	return createMiddleware({ type: "function" }).server(async ({ next }) => {
 		let accountAuthorization: AccountAuthorization;
 		try {
-			const { readCurrentAccount } = await import(
-				"./account-function-runtime.server.ts"
-			);
 			accountAuthorization = evaluateAccountAuthorization(
 				await readCurrentAccount(),
 				requirement,
@@ -43,6 +42,14 @@ export function authorizeAccountFunction(
 		} catch {
 			accountAuthorization = { status: "failure" };
 		}
-		return next({ context: { accountAuthorization } });
+		if (accountAuthorization.status === "failure") {
+			setResponseStatus(500);
+			throw new Error("Account service unavailable");
+		}
+		if (accountAuthorization.status === "denied") {
+			setResponseStatus(403);
+			throw new Error("Forbidden");
+		}
+		return next({ context: { account: accountAuthorization.account } });
 	});
 }

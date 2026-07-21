@@ -28,7 +28,7 @@ import {
 } from "./personal-api-keys.server.ts";
 import {
 	createBrowserSession,
-	createSessionCookie,
+	getSessionCookiePolicy,
 	readBrowserSession,
 } from "./sessions.server.ts";
 import { normalizeUsername } from "./username-policy.ts";
@@ -228,15 +228,10 @@ describe("account lifecycle", () => {
 		expect(JSON.stringify(storedSession)).not.toContain(
 			normalLogin.value.token,
 		);
-		expect(
-			createSessionCookie(
-				normalLogin.value.token,
-				normalLogin.value.expiresAt,
-				20_001,
-			),
-		).toMatch(
-			/^ge_session_dev=[A-Za-z0-9_-]{43}; HttpOnly; SameSite=Lax; Path=\//u,
-		);
+		expect(getSessionCookiePolicy()).toEqual({
+			name: "ge_session_dev",
+			secure: false,
+		});
 
 		const reset = await issueTemporaryPassword(
 			administrator,
