@@ -1,12 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-
-import {
-	bootstrapAdministrator,
-	changePassword,
-	getSetupState,
-	login,
-	registerMember,
-} from "./account-access.server.ts";
 import { authorizeAccountFunction } from "./account-authorization.middleware.ts";
 import {
 	requireString,
@@ -16,16 +8,19 @@ import {
 	runAccountRead,
 	runMutation,
 } from "./account-function-runtime.server.ts";
+import { changePassword, login } from "./authentication.server.ts";
 import {
 	readAppOrigin,
 	readBootstrapToken,
 	readRegistrationEnabled,
 } from "./config.server.ts";
+import { registerMember } from "./registration.server.ts";
 import {
 	logoutCurrentSession,
 	readCurrentAccount,
 	runBrowserSessionMutation,
 } from "./session-function-runtime.server.ts";
+import { bootstrapAdministrator, getSetupState } from "./setup.server.ts";
 
 const authenticatedAccount = authorizeAccountFunction("authenticated");
 

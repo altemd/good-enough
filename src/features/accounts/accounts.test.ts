@@ -5,11 +5,7 @@ import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-	bootstrapAdministrator,
-	login,
-	registerMember,
-} from "./account-access.server.ts";
+import { login } from "./authentication.server.ts";
 import { type AccountDatabase, createAccountDatabase } from "./db.server.ts";
 import { authenticateInferenceApiKey } from "./inference-api-key-authentication.server.ts";
 import {
@@ -26,11 +22,13 @@ import {
 	listPersonalApiKeys,
 	revokePersonalApiKey,
 } from "./personal-api-keys.server.ts";
+import { registerMember } from "./registration.server.ts";
 import {
 	createBrowserSession,
 	getSessionCookiePolicy,
 	readBrowserSession,
 } from "./sessions.server.ts";
+import { bootstrapAdministrator } from "./setup.server.ts";
 import { normalizeUsername } from "./username-policy.ts";
 
 const ADMIN_PASSWORD = "correct horse battery staple";
