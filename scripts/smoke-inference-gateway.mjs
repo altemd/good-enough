@@ -15,6 +15,8 @@ const PRIVATE_TOOL_ARGUMENT = "private-tool-argument-smoke-sentinel";
 const PRIVATE_UPSTREAM_ERROR = "private-upstream-error-smoke-sentinel";
 const DATABASE_PRINCIPAL_ID = "private-database-principal-sentinel";
 const DATABASE_API_KEY = `ge_${"s".repeat(16)}_${"v".repeat(43)}`;
+const DEMO_API_KEY = `ge_demo_${"m".repeat(16)}_${"n".repeat(43)}`;
+const DEMO_PRINCIPAL_ID = `demo:${"m".repeat(16)}`;
 const EXPIRED_API_KEY = `ge_${"e".repeat(16)}_${"x".repeat(43)}`;
 const REVOKED_API_KEY = `ge_${"r".repeat(16)}_${"y".repeat(43)}`;
 const DISABLED_API_KEY = `ge_${"d".repeat(16)}_${"z".repeat(43)}`;
@@ -206,6 +208,16 @@ try {
 		object: "list",
 		data: [],
 	});
+	const demoModelsResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/models`, {
+			headers: { authorization: `Bearer ${DEMO_API_KEY}` },
+		}),
+	);
+	assert.equal(demoModelsResponse.status, 200);
+	assert.deepEqual(await demoModelsResponse.json(), {
+		object: "list",
+		data: [],
+	});
 	const databaseAnthropicResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/messages`, {
 			headers: { "x-api-key": DATABASE_API_KEY },
@@ -214,6 +226,14 @@ try {
 		"anthropic",
 	);
 	assert.equal(databaseAnthropicResponse.status, 405);
+	const demoAnthropicResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/messages`, {
+			headers: { "x-api-key": DEMO_API_KEY },
+			method: "PUT",
+		}),
+		"anthropic",
+	);
+	assert.equal(demoAnthropicResponse.status, 405);
 
 	for (const rejectedKey of [
 		EXPIRED_API_KEY,
@@ -465,6 +485,8 @@ try {
 		PRIVATE_UPSTREAM_ERROR,
 		DATABASE_PRINCIPAL_ID,
 		DATABASE_API_KEY,
+		DEMO_PRINCIPAL_ID,
+		DEMO_API_KEY,
 		EXPIRED_API_KEY,
 		REVOKED_API_KEY,
 		DISABLED_API_KEY,
@@ -542,7 +564,7 @@ function seedDatabaseKeys(path) {
 		now,
 	);
 	const insertKey = database.prepare(
-		"insert into api_keys (selector, user_id, prefix, secret_digest, created_at, expires_at, revoked_at) values (?, ?, ?, ?, ?, ?, ?)",
+		"insert into api_keys (selector, kind, user_id, prefix, secret_digest, created_at, expires_at, revoked_at) values (?, 'personal', ?, ?, ?, ?, ?, ?)",
 	);
 	insertRuntimeKey(
 		insertKey,
@@ -576,7 +598,27 @@ function seedDatabaseKeys(path) {
 		now + 60_000,
 		null,
 	);
+	insertRuntimeDemoToken(database, DEMO_API_KEY, now, now + 60_000);
 	database.close();
+}
+
+function insertRuntimeDemoToken(database, apiKey, createdAt, expiresAt) {
+	const match = /^ge_demo_([A-Za-z0-9_-]{16})_([A-Za-z0-9_-]{43})$/.exec(
+		apiKey,
+	);
+	assert.ok(match);
+	const [, selector, secret] = match;
+	database
+		.prepare(
+			"insert into api_keys (selector, kind, user_id, prefix, secret_digest, created_at, expires_at, revoked_at) values (?, 'demo', null, ?, ?, ?, ?, null)",
+		)
+		.run(
+			selector,
+			`ge_demo_${selector}`,
+			createHash("sha256").update(secret).digest(),
+			createdAt,
+			expiresAt,
+		);
 }
 
 function insertRuntimeKey(
