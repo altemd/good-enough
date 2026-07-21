@@ -16,8 +16,8 @@ import {
 	logoutCurrentSession,
 	readCurrentAccount,
 	runAccountRead,
+	runBrowserSessionMutation,
 	runMutation,
-	setBrowserSessionCookie,
 } from "./account-function-runtime.server.ts";
 import {
 	readAppOrigin,
@@ -79,10 +79,13 @@ export const registerAccount = createServerFn({ method: "POST" })
 export const loginAccount = createServerFn({ method: "POST" })
 	.validator(validateCredentialsInput)
 	.handler(async ({ data }) => {
-		return runMutation(() => {
-			readAppOrigin();
-			return login(data);
-		}, setBrowserSessionCookie);
+		return runBrowserSessionMutation(
+			() => {
+				readAppOrigin();
+				return login(data);
+			},
+			(session) => ({ restricted: session.restricted }),
+		);
 	});
 
 export const logoutAccount = createServerFn({ method: "POST" }).handler(
@@ -93,10 +96,13 @@ export const changeAccountPassword = createServerFn({ method: "POST" })
 	.middleware([authenticatedAccount])
 	.validator(validateChangePasswordInput)
 	.handler(async ({ context, data }) => {
-		return runMutation(() => {
-			readAppOrigin();
-			return changePassword(context.account, data);
-		}, setBrowserSessionCookie);
+		return runBrowserSessionMutation(
+			() => {
+				readAppOrigin();
+				return changePassword(context.account, data);
+			},
+			() => ({}),
+		);
 	});
 
 function validateCredentialsInput(value: unknown): CredentialsInput {

@@ -5,7 +5,10 @@ import {
 	requireString,
 	validateExactObject,
 } from "./account-function-input.ts";
-import { runMutation } from "./account-function-runtime.server.ts";
+import {
+	runDisplayOnceSecretMutation,
+	runMutation,
+} from "./account-function-runtime.server.ts";
 import {
 	issueTemporaryPassword,
 	listMembers,
@@ -39,7 +42,9 @@ export const issueMemberTemporaryPassword = createServerFn({ method: "POST" })
 	.middleware([administratorAccount])
 	.validator(validateMemberInput)
 	.handler(async ({ context, data }) =>
-		runMutation(() => issueTemporaryPassword(context.account, data.memberId)),
+		runDisplayOnceSecretMutation(() =>
+			issueTemporaryPassword(context.account, data.memberId),
+		),
 	);
 
 function validateMemberInput(value: unknown): MemberInput {

@@ -43,6 +43,27 @@ export async function runMutation<T>(
 	return result;
 }
 
+export async function runDisplayOnceSecretMutation<T>(
+	operation: () => AccountMutationResult<T> | Promise<AccountMutationResult<T>>,
+): Promise<AccountMutationResult<T>> {
+	setResponseHeader("Cache-Control", "no-store");
+	return runMutation(operation);
+}
+
+export async function runBrowserSessionMutation<
+	TSession extends { token: string; expiresAt: number },
+	TPublic,
+>(
+	operation: () =>
+		| AccountMutationResult<TSession>
+		| Promise<AccountMutationResult<TSession>>,
+	mapPublicValue: (session: TSession) => TPublic,
+): Promise<AccountMutationResult<TPublic>> {
+	setResponseHeader("Cache-Control", "no-store");
+	const result = await runMutation(operation, setBrowserSessionCookie);
+	return result.ok ? { ok: true, value: mapPublicValue(result.value) } : result;
+}
+
 export async function runAccountRead<T>(
 	operation: () => T | Promise<T>,
 ): Promise<T> {
@@ -93,12 +114,14 @@ async function applyResultStatus(result: AccountMutationResult<unknown>) {
 			setResponseHeader("Retry-After", String(result.retryAfterSeconds));
 		}
 		setResponseStatus(
-			result.code === "rate_limited"
+			result.code === "capacity_reached" || result.code === "rate_limited"
 				? 429
 				: result.code === "configuration_error" ||
 						result.code === "internal_error"
 					? 500
-					: result.code === "forbidden" || result.code === "registration_closed"
+					: result.code === "demo_disabled" ||
+							result.code === "forbidden" ||
+							result.code === "registration_closed"
 						? 403
 						: 400,
 		);

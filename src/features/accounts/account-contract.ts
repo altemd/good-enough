@@ -1,5 +1,7 @@
 export type AccountErrorCode =
+	| "capacity_reached"
 	| "configuration_error"
+	| "demo_disabled"
 	| "forbidden"
 	| "internal_error"
 	| "invalid_credentials"

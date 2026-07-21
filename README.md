@@ -49,10 +49,14 @@ the administrator exists, registration is open by default and always creates a
 registrations without affecting existing accounts.
 
 Browser authentication uses usernames, passwords, and revocable database-backed
-sessions. Passwords use salted, versioned scrypt hashes. There is no email,
-OAuth, MFA, or public password recovery. The administrator may issue a
-display-once temporary member password; recovery of the sole administrator
-requires host access through `pnpm account:reset-admin -- <username>`.
+sessions. Session tokens are returned only through HttpOnly cookies, not
+JavaScript-visible server-function results. Passwords use salted, versioned
+scrypt hashes. There is no email, OAuth, MFA, or public password recovery. The
+administrator may issue a display-once temporary member password; recovery of
+the sole administrator requires host access through
+`pnpm account:reset-admin -- <username>`. That host command deliberately prints
+the temporary password once, so terminal scrollback and captured command output
+must be treated as credential-bearing operator data.
 
 Users create unnamed personal API keys in the dashboard. Each key is displayed
 once, stored only as a digest plus non-secret prefix, and expires exactly seven
