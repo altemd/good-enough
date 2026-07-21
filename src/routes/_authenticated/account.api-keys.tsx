@@ -6,7 +6,7 @@ import {
 	createPersonalApiKey,
 	getPersonalApiKeys,
 	revokePersonalApiKey,
-} from "#/features/accounts/api-key.functions";
+} from "#/features/accounts/api-keys/api-key.functions";
 
 export const Route = createFileRoute("/_authenticated/account/api-keys")({
 	loader: () => getPersonalApiKeys(),

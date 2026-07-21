@@ -1,12 +1,11 @@
 import "@tanstack/react-start/server-only";
 
 import { and, eq } from "drizzle-orm";
-
-import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
-import { users } from "./schema.ts";
-import { deleteUserSessions } from "./sessions.server.ts";
+import { normalizeUsername } from "../access/username-policy.ts";
+import { type AccountDatabase, getAccountDatabase } from "../db.server.ts";
+import { users } from "../schema.ts";
+import { deleteUserSessions } from "../sessions/sessions.server.ts";
 import { createTemporaryPassword } from "./temporary-password.server.ts";
-import { normalizeUsername } from "./username-policy.ts";
 
 export async function resetAdministratorPasswordFromHost(
 	username: string,

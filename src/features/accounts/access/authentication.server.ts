@@ -5,17 +5,20 @@ import { eq } from "drizzle-orm";
 import type {
 	AccountMutationResult,
 	CurrentAccount,
-} from "./account-contract.ts";
-import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
+} from "../account-contract.ts";
+import { type AccountDatabase, getAccountDatabase } from "../db.server.ts";
+import { clearRateLimit, consumeRateLimit } from "../rate-limit.server.ts";
+import { users } from "../schema.ts";
+import {
+	createBrowserSession,
+	deleteUserSessions,
+} from "../sessions/sessions.server.ts";
 import {
 	hashPassword,
 	isValidPassword,
 	verifyLoginPassword,
 	verifyPassword,
 } from "./password.server.ts";
-import { clearRateLimit, consumeRateLimit } from "./rate-limit.server.ts";
-import { users } from "./schema.ts";
-import { createBrowserSession, deleteUserSessions } from "./sessions.server.ts";
 import { normalizeUsername } from "./username-policy.ts";
 
 export async function login(

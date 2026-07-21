@@ -5,13 +5,13 @@ import { and, asc, count, eq, gt, isNull } from "drizzle-orm";
 import type {
 	AccountMutationResult,
 	CurrentAccount,
-} from "./account-contract.ts";
+} from "../account-contract.ts";
 import {
 	createPersonalApiKeyMaterial,
 	parsePersonalApiKeyPrefix,
-} from "./credential-secrets.server.ts";
-import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
-import { apiKeys } from "./schema.ts";
+} from "../credential-secrets.server.ts";
+import { type AccountDatabase, getAccountDatabase } from "../db.server.ts";
+import { apiKeys } from "../schema.ts";
 
 const API_KEY_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_ACTIVE_API_KEYS = 10;

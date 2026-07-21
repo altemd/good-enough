@@ -9,7 +9,7 @@ import {
 	readCurrentSession,
 	runBrowserSessionMutation,
 	setBrowserSessionCookie,
-} from "./session-function-runtime.server.ts";
+} from "./sessions/session-function-runtime.server.ts";
 
 const startServer = vi.hoisted(() => ({
 	deleteCookie: vi.fn(),
@@ -25,7 +25,7 @@ const sessionStore = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-start/server", () => startServer);
-vi.mock("./sessions.server.ts", () => sessionStore);
+vi.mock("./sessions/sessions.server.ts", () => sessionStore);
 
 beforeEach(() => {
 	vi.clearAllMocks();

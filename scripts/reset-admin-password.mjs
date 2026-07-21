@@ -1,4 +1,4 @@
-import { resetAdministratorPasswordFromHost } from "../src/features/accounts/administrator-recovery.server.ts";
+import { resetAdministratorPasswordFromHost } from "../src/features/accounts/administration/administrator-recovery.server.ts";
 
 const username = process.argv[2];
 if (!username || process.argv.length !== 3) {

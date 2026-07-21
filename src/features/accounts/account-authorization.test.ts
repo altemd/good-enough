@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-
-import { evaluateAccountAuthorization } from "./account-authorization.middleware.ts";
 import type { CurrentAccount } from "./account-contract.ts";
+import { evaluateAccountAuthorization } from "./sessions/account-authorization.middleware.ts";
 
 const member: CurrentAccount = {
 	id: "member-id",

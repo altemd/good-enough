@@ -5,31 +5,31 @@ import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { login } from "./authentication.server.ts";
-import { type AccountDatabase, createAccountDatabase } from "./db.server.ts";
-import { authenticateInferenceApiKey } from "./inference-api-key-authentication.server.ts";
-import {
-	issueTemporaryPassword,
-	setMemberDisabled,
-} from "./member-administration.server.ts";
+import { login } from "./access/authentication.server.ts";
 import {
 	hashPassword,
 	verifyLoginPassword,
 	verifyPassword,
-} from "./password.server.ts";
+} from "./access/password.server.ts";
+import { registerMember } from "./access/registration.server.ts";
+import { bootstrapAdministrator } from "./access/setup.server.ts";
+import { normalizeUsername } from "./access/username-policy.ts";
+import {
+	issueTemporaryPassword,
+	setMemberDisabled,
+} from "./administration/member-administration.server.ts";
+import { authenticateInferenceApiKey } from "./api-keys/inference-api-key-authentication.server.ts";
 import {
 	createPersonalApiKey,
 	listPersonalApiKeys,
 	revokePersonalApiKey,
-} from "./personal-api-keys.server.ts";
-import { registerMember } from "./registration.server.ts";
+} from "./api-keys/personal-api-keys.server.ts";
+import { type AccountDatabase, createAccountDatabase } from "./db.server.ts";
 import {
 	createBrowserSession,
 	getSessionCookiePolicy,
 	readBrowserSession,
-} from "./sessions.server.ts";
-import { bootstrapAdministrator } from "./setup.server.ts";
-import { normalizeUsername } from "./username-policy.ts";
+} from "./sessions/sessions.server.ts";
 
 const ADMIN_PASSWORD = "correct horse battery staple";
 const MEMBER_PASSWORD = "member password long enough";

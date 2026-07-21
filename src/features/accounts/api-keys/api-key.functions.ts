@@ -1,15 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-
-import { authorizeAccountFunction } from "./account-authorization.middleware.ts";
 import {
 	requireString,
 	validateEmptyInput,
 	validateExactObject,
-} from "./account-function-input.ts";
+} from "../account-function-input.ts";
 import {
 	runDisplayOnceSecretMutation,
 	runMutation,
-} from "./account-function-runtime.server.ts";
+} from "../account-function-runtime.server.ts";
+import { authorizeAccountFunction } from "../sessions/account-authorization.middleware.ts";
 import { issueDemoApiToken } from "./demo-api-tokens.server.ts";
 import {
 	createPersonalApiKey as createKey,

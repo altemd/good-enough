@@ -3,11 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { issueDemoApiToken } from "./api-keys/demo-api-tokens.server.ts";
+import { authenticateInferenceApiKey } from "./api-keys/inference-api-key-authentication.server.ts";
 import { readPublicDemoEnabled } from "./config.server.ts";
 import { type AccountDatabase, createAccountDatabase } from "./db.server.ts";
-import { issueDemoApiToken } from "./demo-api-tokens.server.ts";
-import { authenticateInferenceApiKey } from "./inference-api-key-authentication.server.ts";
 import { clearRateLimit } from "./rate-limit.server.ts";
 
 const RATE_LIMIT_KEY = "demo-api-token-issuance:global";

@@ -3,14 +3,14 @@ import "@tanstack/react-start/server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import { and, asc, eq, gt, lte } from "drizzle-orm";
 
-import { readAppOrigin } from "./config.server.ts";
-import { digestCredentialSecret } from "./credential-secrets.server.ts";
+import { readAppOrigin } from "../config.server.ts";
+import { digestCredentialSecret } from "../credential-secrets.server.ts";
 import {
 	type AccountDatabase,
 	type AccountQueryDatabase,
 	getAccountDatabase,
-} from "./db.server.ts";
-import { sessions, users } from "./schema.ts";
+} from "../db.server.ts";
+import { sessions, users } from "../schema.ts";
 
 const NORMAL_SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 const RESTRICTED_SESSION_MS = 30 * 60 * 1000;

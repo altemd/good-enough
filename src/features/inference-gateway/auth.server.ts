@@ -47,7 +47,9 @@ async function verifyPersistedApiKey(
 ): Promise<AuthenticationDecision> {
 	const [{ authenticateInferenceApiKey }, { getAccountDatabase }] =
 		await Promise.all([
-			import("#/features/accounts/inference-api-key-authentication.server.ts"),
+			import(
+				"#/features/accounts/api-keys/inference-api-key-authentication.server.ts"
+			),
 			import("#/features/accounts/db.server.ts"),
 		]);
 	return authenticateInferenceApiKey(presentedKey, getAccountDatabase());

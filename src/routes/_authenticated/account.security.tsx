@@ -2,7 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
-import { changeAccountPassword } from "#/features/accounts/account-access.functions";
+import { changeAccountPassword } from "#/features/accounts/access/account-access.functions";
 
 export const Route = createFileRoute("/_authenticated/account/security")({
 	component: SecurityPage,

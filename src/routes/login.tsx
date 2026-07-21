@@ -2,7 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
-import { loginAccount } from "#/features/accounts/account-access.functions";
+import { loginAccount } from "#/features/accounts/access/account-access.functions";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 

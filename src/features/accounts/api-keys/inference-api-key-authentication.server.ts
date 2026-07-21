@@ -6,9 +6,9 @@ import {
 	credentialSecretMatchesDigest,
 	parseDemoApiToken,
 	parsePersonalApiKey,
-} from "./credential-secrets.server.ts";
-import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
-import { apiKeys, users } from "./schema.ts";
+} from "../credential-secrets.server.ts";
+import { type AccountDatabase, getAccountDatabase } from "../db.server.ts";
+import { apiKeys, users } from "../schema.ts";
 
 export function authenticateInferenceApiKey(
 	presentedKey: string,

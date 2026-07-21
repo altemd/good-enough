@@ -5,10 +5,10 @@ import { and, asc, eq, gt, isNull, ne } from "drizzle-orm";
 import type {
 	AccountMutationResult,
 	CurrentAccount,
-} from "./account-contract.ts";
-import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
-import { apiKeys, sessions, users } from "./schema.ts";
-import { deleteUserSessions } from "./sessions.server.ts";
+} from "../account-contract.ts";
+import { type AccountDatabase, getAccountDatabase } from "../db.server.ts";
+import { apiKeys, sessions, users } from "../schema.ts";
+import { deleteUserSessions } from "../sessions/sessions.server.ts";
 import { createTemporaryPassword } from "./temporary-password.server.ts";
 
 export function listMembers(

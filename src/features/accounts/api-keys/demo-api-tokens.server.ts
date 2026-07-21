@@ -2,12 +2,12 @@ import "@tanstack/react-start/server-only";
 
 import { and, count, eq, gt, inArray, lte, min } from "drizzle-orm";
 
-import type { AccountMutationResult } from "./account-contract.ts";
-import { readPublicDemoEnabled } from "./config.server.ts";
-import { createDemoApiTokenMaterial } from "./credential-secrets.server.ts";
-import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
-import { consumeRateLimit } from "./rate-limit.server.ts";
-import { apiKeys, users } from "./schema.ts";
+import type { AccountMutationResult } from "../account-contract.ts";
+import { readPublicDemoEnabled } from "../config.server.ts";
+import { createDemoApiTokenMaterial } from "../credential-secrets.server.ts";
+import { type AccountDatabase, getAccountDatabase } from "../db.server.ts";
+import { consumeRateLimit } from "../rate-limit.server.ts";
+import { apiKeys, users } from "../schema.ts";
 
 const DEMO_API_TOKEN_LIFETIME_MS = 60 * 60 * 1000;
 const MAX_UNEXPIRED_DEMO_API_TOKENS = 25;

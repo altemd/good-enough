@@ -3,12 +3,12 @@ import "@tanstack/react-start/server-only";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 
-import type { AccountMutationResult } from "./account-contract.ts";
-import { readRegistrationEnabled } from "./config.server.ts";
-import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
+import type { AccountMutationResult } from "../account-contract.ts";
+import { readRegistrationEnabled } from "../config.server.ts";
+import { type AccountDatabase, getAccountDatabase } from "../db.server.ts";
+import { consumeRateLimit } from "../rate-limit.server.ts";
+import { users } from "../schema.ts";
 import { hashPassword, isValidPassword } from "./password.server.ts";
-import { consumeRateLimit } from "./rate-limit.server.ts";
-import { users } from "./schema.ts";
 import { normalizeUsername } from "./username-policy.ts";
 
 export async function registerMember(

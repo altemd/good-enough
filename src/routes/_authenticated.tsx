@@ -10,7 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
 	getCurrentAccount,
 	logoutAccount,
-} from "#/features/accounts/account-access.functions";
+} from "#/features/accounts/access/account-access.functions";
 
 export const Route = createFileRoute("/_authenticated")({
 	beforeLoad: async ({ location }) => {

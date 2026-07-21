@@ -10,8 +10,8 @@ import {
 import type {
 	AccountMutationResult,
 	CurrentAccount,
-} from "./account-contract.ts";
-import { runMutation } from "./account-function-runtime.server.ts";
+} from "../account-contract.ts";
+import { runMutation } from "../account-function-runtime.server.ts";
 import {
 	deleteBrowserSession,
 	getSessionCookiePolicy,

@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
 	bootstrapAccount,
 	getAccountEntryState,
-} from "#/features/accounts/account-access.functions";
+} from "#/features/accounts/access/account-access.functions";
 
 export const Route = createFileRoute("/setup")({
 	loader: () => getAccountEntryState(),

@@ -6,7 +6,7 @@ import {
 	getMembers,
 	issueMemberTemporaryPassword,
 	setMemberDisabled,
-} from "#/features/accounts/member-administration.functions";
+} from "#/features/accounts/administration/member-administration.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
 	loader: async () => {

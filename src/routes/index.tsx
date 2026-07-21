@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { getCurrentAccount } from "#/features/accounts/account-access.functions";
+import { getCurrentAccount } from "#/features/accounts/access/account-access.functions";
 
 export const Route = createFileRoute("/")({
 	beforeLoad: async () => {
