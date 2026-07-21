@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CurrentAccount } from "./account-contract.ts";
-import { authorizeAccountFunction } from "./sessions/account-authorization.middleware.ts";
+import type { CurrentAccount } from "../account-contract.ts";
+import { authorizeAccountFunction } from "./account-authorization.middleware.ts";
 
 const runtime = vi.hoisted(() => ({
 	readCurrentAccount: vi.fn(),
@@ -9,7 +9,7 @@ const startServer = vi.hoisted(() => ({
 	setResponseStatus: vi.fn(),
 }));
 
-vi.mock("./sessions/session-function-runtime.server.ts", () => runtime);
+vi.mock("./session-function-runtime.server.ts", () => runtime);
 vi.mock("@tanstack/react-start/server", () => startServer);
 
 const administrator: CurrentAccount = {
