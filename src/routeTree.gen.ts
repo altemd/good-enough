@@ -10,9 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as V1ModelsRouteImport } from './routes/v1/models'
-import { Route as V1MessagesRouteImport } from './routes/v1/messages'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as SetupRouteImport } from './routes/setup'
+import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as V1SplatRouteImport } from './routes/v1/$'
+import { Route as V1MessagesRouteImport } from './routes/v1/messages'
+import { Route as V1ModelsRouteImport } from './routes/v1/models'
+import { Route as AuthenticatedAccountApiKeysRouteImport } from './routes/_authenticated/account.api-keys'
+import { Route as AuthenticatedAccountSecurityRouteImport } from './routes/_authenticated/account.security'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completions'
 
 const IndexRoute = IndexRouteImport.update({
@@ -20,9 +28,33 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const V1ModelsRoute = V1ModelsRouteImport.update({
-  id: '/v1/models',
-  path: '/v1/models',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const V1SplatRoute = V1SplatRouteImport.update({
+  id: '/v1/$',
+  path: '/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V1MessagesRoute = V1MessagesRouteImport.update({
@@ -30,10 +62,27 @@ const V1MessagesRoute = V1MessagesRouteImport.update({
   path: '/v1/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
-const V1SplatRoute = V1SplatRouteImport.update({
-  id: '/v1/$',
-  path: '/v1/$',
+const V1ModelsRoute = V1ModelsRouteImport.update({
+  id: '/v1/models',
+  path: '/v1/models',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAccountApiKeysRoute =
+  AuthenticatedAccountApiKeysRouteImport.update({
+    id: '/api-keys',
+    path: '/api-keys',
+    getParentRoute: () => AuthenticatedAccountRoute,
+  } as any)
+const AuthenticatedAccountSecurityRoute =
+  AuthenticatedAccountSecurityRouteImport.update({
+    id: '/security',
+    path: '/security',
+    getParentRoute: () => AuthenticatedAccountRoute,
+  } as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const V1ChatCompletionsRoute = V1ChatCompletionsRouteImport.update({
   id: '/v1/chat/completions',
@@ -43,43 +92,100 @@ const V1ChatCompletionsRoute = V1ChatCompletionsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/setup': typeof SetupRoute
+  '/account': typeof AuthenticatedAccountRouteWithChildren
   '/v1/$': typeof V1SplatRoute
   '/v1/messages': typeof V1MessagesRoute
   '/v1/models': typeof V1ModelsRoute
+  '/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
+  '/account/security': typeof AuthenticatedAccountSecurityRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/setup': typeof SetupRoute
+  '/account': typeof AuthenticatedAccountRouteWithChildren
   '/v1/$': typeof V1SplatRoute
   '/v1/messages': typeof V1MessagesRoute
   '/v1/models': typeof V1ModelsRoute
+  '/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
+  '/account/security': typeof AuthenticatedAccountSecurityRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/setup': typeof SetupRoute
+  '/_authenticated/account': typeof AuthenticatedAccountRouteWithChildren
   '/v1/$': typeof V1SplatRoute
   '/v1/messages': typeof V1MessagesRoute
   '/v1/models': typeof V1ModelsRoute
+  '/_authenticated/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
+  '/_authenticated/account/security': typeof AuthenticatedAccountSecurityRoute
+  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/v1/$' | '/v1/messages' | '/v1/models' | '/v1/chat/completions'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/v1/$' | '/v1/messages' | '/v1/models' | '/v1/chat/completions'
-  id:
-    | '__root__'
     | '/'
+    | '/login'
+    | '/register'
+    | '/setup'
+    | '/account'
     | '/v1/$'
     | '/v1/messages'
     | '/v1/models'
+    | '/account/api-keys'
+    | '/account/security'
+    | '/admin/users'
+    | '/v1/chat/completions'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/login'
+    | '/register'
+    | '/setup'
+    | '/account'
+    | '/v1/$'
+    | '/v1/messages'
+    | '/v1/models'
+    | '/account/api-keys'
+    | '/account/security'
+    | '/admin/users'
+    | '/v1/chat/completions'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/login'
+    | '/register'
+    | '/setup'
+    | '/_authenticated/account'
+    | '/v1/$'
+    | '/v1/messages'
+    | '/v1/models'
+    | '/_authenticated/account/api-keys'
+    | '/_authenticated/account/security'
+    | '/_authenticated/admin/users'
     | '/v1/chat/completions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
+  SetupRoute: typeof SetupRoute
   V1SplatRoute: typeof V1SplatRoute
   V1MessagesRoute: typeof V1MessagesRoute
   V1ModelsRoute: typeof V1ModelsRoute
@@ -95,11 +201,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/v1/models': {
-      id: '/v1/models'
-      path: '/v1/models'
-      fullPath: '/v1/models'
-      preLoaderRoute: typeof V1ModelsRouteImport
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/account': {
+      id: '/_authenticated/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthenticatedAccountRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/v1/$': {
+      id: '/v1/$'
+      path: '/v1/$'
+      fullPath: '/v1/$'
+      preLoaderRoute: typeof V1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v1/messages': {
@@ -109,12 +250,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof V1MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/v1/$': {
-      id: '/v1/$'
-      path: '/v1/$'
-      fullPath: '/v1/$'
-      preLoaderRoute: typeof V1SplatRouteImport
+    '/v1/models': {
+      id: '/v1/models'
+      path: '/v1/models'
+      fullPath: '/v1/models'
+      preLoaderRoute: typeof V1ModelsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/account/api-keys': {
+      id: '/_authenticated/account/api-keys'
+      path: '/api-keys'
+      fullPath: '/account/api-keys'
+      preLoaderRoute: typeof AuthenticatedAccountApiKeysRouteImport
+      parentRoute: typeof AuthenticatedAccountRoute
+    }
+    '/_authenticated/account/security': {
+      id: '/_authenticated/account/security'
+      path: '/security'
+      fullPath: '/account/security'
+      preLoaderRoute: typeof AuthenticatedAccountSecurityRouteImport
+      parentRoute: typeof AuthenticatedAccountRoute
+    }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/v1/chat/completions': {
       id: '/v1/chat/completions'
@@ -126,8 +288,39 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAccountRouteChildren {
+  AuthenticatedAccountApiKeysRoute: typeof AuthenticatedAccountApiKeysRoute
+  AuthenticatedAccountSecurityRoute: typeof AuthenticatedAccountSecurityRoute
+}
+
+const AuthenticatedAccountRouteChildren: AuthenticatedAccountRouteChildren = {
+  AuthenticatedAccountApiKeysRoute: AuthenticatedAccountApiKeysRoute,
+  AuthenticatedAccountSecurityRoute: AuthenticatedAccountSecurityRoute,
+}
+
+const AuthenticatedAccountRouteWithChildren =
+  AuthenticatedAccountRoute._addFileChildren(AuthenticatedAccountRouteChildren)
+
+interface AuthenticatedRouteChildren {
+  AuthenticatedAccountRoute: typeof AuthenticatedAccountRouteWithChildren
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAccountRoute: AuthenticatedAccountRouteWithChildren,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
+  SetupRoute: SetupRoute,
   V1SplatRoute: V1SplatRoute,
   V1MessagesRoute: V1MessagesRoute,
   V1ModelsRoute: V1ModelsRoute,
@@ -138,10 +331,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
