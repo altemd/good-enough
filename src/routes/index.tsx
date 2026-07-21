@@ -1,10 +1,13 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { getCurrentAccount } from "#/features/accounts/access/account-access.functions";
+import { PublicDemoRoutePage } from "#/features/public-demo/public-demo-route";
 
 export const Route = createFileRoute("/")({
-	beforeLoad: async () => {
-		const account = await getCurrentAccount();
-		throw redirect({ to: account ? "/account" : "/login" });
-	},
+	loader: () => getCurrentAccount(),
+	component: IndexRoute,
 });
+
+function IndexRoute() {
+	return <PublicDemoRoutePage account={Route.useLoaderData()} />;
+}

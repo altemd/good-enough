@@ -140,18 +140,16 @@ bypass, and authentication never records use or extends expiry. A copied token
 works until its absolute expiry, so the browser must treat the one-time response
 as a secret.
 
-The remaining UI checkpoint is to let a first-time visitor try the real
-compatibility API before registering without turning the demo credential into
-an account or retaining its inference activity:
+The public landing page exposes a prominent `Start one-hour demo` action. It
+issues a credential only after an explicit user click, so crawlers, link
+previews, and speculative browser loads do not consume demo credentials. The
+complete value appears only in the creation result with copy and dismiss
+actions. It remains in React page memory rather than a URL, cookie, local
+storage, or session storage; refresh, navigation, or dismissal forgets it.
 
-- Put a prominent `Start one-hour demo` action on the public landing page. Use
-  an explicit user action rather than issuing a credential during page render;
-  crawlers, link previews, and speculative browser loads must not consume demo
-  credentials automatically.
-- Display the returned key only in the creation result, provide an explicit copy
-  action, and keep it in page memory rather than a persistent browser store.
-- Connect the token to the focused chat UI without embedding a shared token in
-  HTML or JavaScript and without logging prompts or responses.
+The remaining demo UI checkpoint is to connect that in-memory token to the
+focused streaming chat UI without embedding a shared token in HTML or
+JavaScript and without logging or persisting prompts and responses.
 
 Without email, CAPTCHA, a durable device identity, or retained IP addresses,
 the service cannot honestly enforce “one demo per person”; another explicit
