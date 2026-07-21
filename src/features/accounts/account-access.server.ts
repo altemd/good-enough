@@ -16,6 +16,7 @@ import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
 import {
 	hashPassword,
 	isValidPassword,
+	verifyLoginPassword,
 	verifyPassword,
 } from "./password.server.ts";
 import { clearRateLimit, consumeRateLimit } from "./rate-limit.server.ts";
@@ -233,9 +234,10 @@ export async function login(
 				.get()
 		: undefined;
 	const passwordInputValid = isValidPassword(input.password);
-	const passwordMatches = user
-		? await verifyPassword(user.passwordHash, input.password)
-		: false;
+	const passwordMatches = await verifyLoginPassword(
+		user?.passwordHash,
+		input.password,
+	);
 	const temporaryPasswordValid =
 		!user?.mustChangePassword ||
 		(user.temporaryPasswordExpiresAt !== null &&

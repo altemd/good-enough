@@ -15,7 +15,11 @@ import {
 	issueTemporaryPassword,
 	setMemberDisabled,
 } from "./member-administration.server.ts";
-import { hashPassword, verifyPassword } from "./password.server.ts";
+import {
+	hashPassword,
+	verifyLoginPassword,
+	verifyPassword,
+} from "./password.server.ts";
 import {
 	authenticatePersonalApiKey,
 	createPersonalApiKey,
@@ -407,6 +411,8 @@ describe("credential primitives", () => {
 		expect(hash).not.toContain(password);
 		expect(await verifyPassword(hash, password)).toBe(true);
 		expect(await verifyPassword(hash, password.trim())).toBe(false);
+		expect(await verifyLoginPassword(hash, password)).toBe(true);
+		expect(await verifyLoginPassword(undefined, password)).toBe(false);
 		const shortHash = await hashPassword("short");
 		expect(await verifyPassword(shortHash, "short")).toBe(true);
 	}, 30_000);

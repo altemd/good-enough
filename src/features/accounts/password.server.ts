@@ -13,6 +13,8 @@ const SCRYPT_KEY_LENGTH = 64;
 const SCRYPT_MAX_MEMORY = 256 * 1024 * 1024;
 const PASSWORD_MIN_CODE_POINTS = 15;
 const PASSWORD_MAX_CODE_POINTS = 128;
+const DUMMY_PASSWORD_HASH =
+	"scrypt$1$131072$8$1$OCyxi1oHi1jaFf-00aVUVA$lYESS2o0Lt1Uk8-kC4R5Cf2d67o8961RacfCFR751It5Jzws5dd9ownIgZ8fvA4K2FXsD0WE2VLWA1GQIzpGNQ";
 
 export function isValidPassword(password: string): boolean {
 	const length = Array.from(password).length;
@@ -67,6 +69,17 @@ export async function verifyPassword(
 	} catch {
 		return false;
 	}
+}
+
+export async function verifyLoginPassword(
+	encoded: string | null | undefined,
+	password: string,
+): Promise<boolean> {
+	const matches = await verifyPassword(
+		encoded ?? DUMMY_PASSWORD_HASH,
+		password,
+	);
+	return encoded !== null && encoded !== undefined && matches;
 }
 
 function derivePassword(
