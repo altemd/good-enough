@@ -58,9 +58,10 @@ export const apiKeys = sqliteTable(
 	"api_keys",
 	{
 		selector: text("selector").primaryKey(),
-		userId: text("user_id")
+		kind: text("kind", { enum: ["personal", "demo"] })
 			.notNull()
-			.references(() => users.id, { onDelete: "cascade" }),
+			.default("personal"),
+		userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
 		prefix: text("prefix").notNull(),
 		secretDigest: blob("secret_digest", { mode: "buffer" }).notNull(),
 		createdAt: integer("created_at").notNull(),
@@ -70,6 +71,16 @@ export const apiKeys = sqliteTable(
 	(table) => [
 		uniqueIndex("api_keys_secret_digest_unique").on(table.secretDigest),
 		index("api_keys_user_expiry_index").on(table.userId, table.expiresAt),
+		index("api_keys_kind_expiry_index").on(table.kind, table.expiresAt),
+		check("api_keys_kind_check", sql`${table.kind} in ('personal', 'demo')`),
+		check(
+			"api_keys_ownership_check",
+			sql`(${table.kind} = 'personal' and ${table.userId} is not null) or (${table.kind} = 'demo' and ${table.userId} is null and ${table.revokedAt} is null)`,
+		),
+		check(
+			"api_keys_expiry_after_creation_check",
+			sql`${table.expiresAt} > ${table.createdAt}`,
+		),
 	],
 );
 

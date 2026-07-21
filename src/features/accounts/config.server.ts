@@ -28,6 +28,18 @@ export function readRegistrationEnabled(
 	throw new Error("Invalid registration configuration");
 }
 
+export function readPublicDemoEnabled(
+	value = process.env.PUBLIC_DEMO_ENABLED,
+): boolean {
+	if (value === undefined || value === "true") {
+		return true;
+	}
+	if (value === "false") {
+		return false;
+	}
+	throw new Error("Invalid public demo configuration");
+}
+
 export function readBootstrapToken(
 	value = process.env.ACCOUNT_BOOTSTRAP_TOKEN,
 ): string | null {

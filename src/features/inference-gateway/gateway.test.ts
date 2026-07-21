@@ -1355,7 +1355,7 @@ function seedTestPersonalApiKey() {
 		);
 	database
 		.prepare(
-			"insert or ignore into api_keys (selector, user_id, prefix, secret_digest, created_at, expires_at, revoked_at) values (?, ?, ?, ?, ?, ?, null)",
+			"insert or ignore into api_keys (selector, kind, user_id, prefix, secret_digest, created_at, expires_at, revoked_at) values (?, 'personal', ?, ?, ?, ?, ?, null)",
 		)
 		.run(
 			TEST_SELECTOR,

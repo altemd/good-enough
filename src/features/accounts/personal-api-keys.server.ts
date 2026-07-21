@@ -8,12 +8,10 @@ import type {
 } from "./account-contract.ts";
 import {
 	createPersonalApiKeyMaterial,
-	credentialSecretMatchesDigest,
-	parsePersonalApiKey,
 	parsePersonalApiKeyPrefix,
 } from "./credential-secrets.server.ts";
 import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
-import { apiKeys, users } from "./schema.ts";
+import { apiKeys } from "./schema.ts";
 
 const API_KEY_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_ACTIVE_API_KEYS = 10;
@@ -38,6 +36,7 @@ export function createPersonalApiKey(
 				.from(apiKeys)
 				.where(
 					and(
+						eq(apiKeys.kind, "personal"),
 						eq(apiKeys.userId, account.id),
 						isNull(apiKeys.revokedAt),
 						gt(apiKeys.expiresAt, now),
@@ -53,6 +52,7 @@ export function createPersonalApiKey(
 				.insert(apiKeys)
 				.values({
 					selector: key.selector,
+					kind: "personal",
 					userId: account.id,
 					prefix: key.prefix,
 					secretDigest: key.secretDigest,
@@ -90,7 +90,7 @@ export function listPersonalApiKeys(
 			revokedAt: apiKeys.revokedAt,
 		})
 		.from(apiKeys)
-		.where(eq(apiKeys.userId, account.id))
+		.where(and(eq(apiKeys.kind, "personal"), eq(apiKeys.userId, account.id)))
 		.orderBy(asc(apiKeys.createdAt))
 		.all()
 		.map((key) => ({
@@ -123,6 +123,7 @@ export function revokePersonalApiKey(
 				.set({ revokedAt: now })
 				.where(
 					and(
+						eq(apiKeys.kind, "personal"),
 						eq(apiKeys.selector, selector),
 						eq(apiKeys.userId, account.id),
 						isNull(apiKeys.revokedAt),
@@ -133,35 +134,4 @@ export function revokePersonalApiKey(
 		},
 		{ behavior: "immediate" },
 	);
-}
-
-export function authenticatePersonalApiKey(
-	presentedKey: string,
-	database: AccountDatabase = getAccountDatabase(),
-	now = Date.now(),
-): { status: "authenticated"; principalId: string } | { status: "rejected" } {
-	const parsed = parsePersonalApiKey(presentedKey);
-	if (!parsed) return { status: "rejected" };
-	const key = database.db
-		.select({
-			userId: apiKeys.userId,
-			secretDigest: apiKeys.secretDigest,
-			expiresAt: apiKeys.expiresAt,
-			revokedAt: apiKeys.revokedAt,
-			userStatus: users.status,
-		})
-		.from(apiKeys)
-		.innerJoin(users, eq(apiKeys.userId, users.id))
-		.where(eq(apiKeys.selector, parsed.selector))
-		.get();
-	if (
-		!key ||
-		key.revokedAt !== null ||
-		key.expiresAt <= now ||
-		key.userStatus !== "active"
-	)
-		return { status: "rejected" };
-	return credentialSecretMatchesDigest(parsed.secret, key.secretDigest)
-		? { status: "authenticated", principalId: key.userId }
-		: { status: "rejected" };
 }

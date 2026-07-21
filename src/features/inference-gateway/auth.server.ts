@@ -7,14 +7,14 @@ export type AuthenticationDecision =
 	| { readonly status: "configuration_error" }
 	| { readonly status: "rejected" };
 
-type PersonalApiKeyVerifier = (
+type PersistedApiKeyVerifier = (
 	presentedKey: string,
 ) => AuthenticationDecision | Promise<AuthenticationDecision>;
 
 export async function authenticateGatewayApiKey(
 	request: Request,
 	apiProtocol: ApiProtocol,
-	verifyPersonalApiKey: PersonalApiKeyVerifier = verifyPersistedPersonalApiKey,
+	verifyApiKey: PersistedApiKeyVerifier = verifyPersistedApiKey,
 ): Promise<AuthenticationDecision> {
 	const presentedKey = extractApiKey(request.headers, apiProtocol);
 	if (!presentedKey) {
@@ -22,7 +22,7 @@ export async function authenticateGatewayApiKey(
 	}
 
 	try {
-		return await verifyPersonalApiKey(presentedKey);
+		return await verifyApiKey(presentedKey);
 	} catch {
 		return { status: "configuration_error" };
 	}
@@ -42,13 +42,13 @@ function extractApiKey(
 	return match?.[1] ?? null;
 }
 
-async function verifyPersistedPersonalApiKey(
+async function verifyPersistedApiKey(
 	presentedKey: string,
 ): Promise<AuthenticationDecision> {
-	const [{ authenticatePersonalApiKey }, { getAccountDatabase }] =
+	const [{ authenticateInferenceApiKey }, { getAccountDatabase }] =
 		await Promise.all([
-			import("#/features/accounts/personal-api-keys.server.ts"),
+			import("#/features/accounts/inference-api-key-authentication.server.ts"),
 			import("#/features/accounts/db.server.ts"),
 		]);
-	return authenticatePersonalApiKey(presentedKey, getAccountDatabase());
+	return authenticateInferenceApiKey(presentedKey, getAccountDatabase());
 }

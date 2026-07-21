@@ -11,6 +11,7 @@ import {
 	registerMember,
 } from "./account-access.server.ts";
 import { type AccountDatabase, createAccountDatabase } from "./db.server.ts";
+import { authenticateInferenceApiKey } from "./inference-api-key-authentication.server.ts";
 import {
 	issueTemporaryPassword,
 	setMemberDisabled,
@@ -21,7 +22,6 @@ import {
 	verifyPassword,
 } from "./password.server.ts";
 import {
-	authenticatePersonalApiKey,
 	createPersonalApiKey,
 	listPersonalApiKeys,
 	revokePersonalApiKey,
@@ -147,14 +147,14 @@ describe("account lifecycle", () => {
 		expect(JSON.stringify(stored)).not.toContain(created.value.apiKey);
 
 		expect(
-			authenticatePersonalApiKey(
+			authenticateInferenceApiKey(
 				created.value.apiKey,
 				database,
 				created.value.expiresAt - 1,
 			),
 		).toEqual({ status: "authenticated", principalId: account.id });
 		expect(
-			authenticatePersonalApiKey(
+			authenticateInferenceApiKey(
 				created.value.apiKey,
 				database,
 				created.value.expiresAt,
@@ -261,7 +261,7 @@ describe("account lifecycle", () => {
 			readBrowserSession(signedIn.value.token, 40_001, database),
 		).toBeNull();
 		expect(
-			authenticatePersonalApiKey(key.value.apiKey, database, 40_001),
+			authenticateInferenceApiKey(key.value.apiKey, database, 40_001),
 		).toEqual({ status: "rejected" });
 	}, 30_000);
 
@@ -322,7 +322,7 @@ describe("account lifecycle", () => {
 			database.sqlite
 				.prepare("select count(*) as count from __drizzle_migrations")
 				.get(),
-		).toEqual({ count: 1 });
+		).toEqual({ count: 2 });
 	});
 
 	it("rolls back a failed immediate account transaction", () => {
@@ -388,7 +388,7 @@ describe("account lifecycle", () => {
 		expect(
 			database.sqlite.prepare("select count(*) as count from sessions").get(),
 		).toEqual({ count: 0 });
-		expect(authenticatePersonalApiKey(key.value.apiKey, database).status).toBe(
+		expect(authenticateInferenceApiKey(key.value.apiKey, database).status).toBe(
 			"authenticated",
 		);
 	}, 30_000);

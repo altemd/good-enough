@@ -3,36 +3,43 @@ import { describe, expect, it, vi } from "vitest";
 import { authenticateGatewayApiKey } from "./auth.server";
 
 const PERSONAL_KEY = `ge_${"s".repeat(16)}_${"v".repeat(43)}`;
+const DEMO_KEY = `ge_demo_${"d".repeat(16)}_${"m".repeat(43)}`;
 
-describe("personal API-key authentication", () => {
-	it("passes an OpenAI bearer credential to the account verifier", async () => {
+describe("persisted API-key authentication", () => {
+	it.each([
+		["personal", PERSONAL_KEY],
+		["demo", DEMO_KEY],
+	] as const)("passes an OpenAI %s bearer credential to the account verifier", async (_kind, credential) => {
 		const verify = vi.fn(() => ({
 			status: "authenticated" as const,
 			principalId: "account-id",
 		}));
 		expect(
 			await authenticateGatewayApiKey(
-				request({ authorization: `Bearer ${PERSONAL_KEY}` }),
+				request({ authorization: `Bearer ${credential}` }),
 				"openai",
 				verify,
 			),
 		).toEqual({ status: "authenticated", principalId: "account-id" });
-		expect(verify).toHaveBeenCalledWith(PERSONAL_KEY);
+		expect(verify).toHaveBeenCalledWith(credential);
 	});
 
-	it("passes an Anthropic x-api-key credential to the account verifier", async () => {
+	it.each([
+		["personal", PERSONAL_KEY],
+		["demo", DEMO_KEY],
+	] as const)("passes an Anthropic %s x-api-key credential to the account verifier", async (_kind, credential) => {
 		const verify = vi.fn(() => ({
 			status: "authenticated" as const,
 			principalId: "account-id",
 		}));
 		expect(
 			await authenticateGatewayApiKey(
-				request({ "x-api-key": PERSONAL_KEY }),
+				request({ "x-api-key": credential }),
 				"anthropic",
 				verify,
 			),
 		).toEqual({ status: "authenticated", principalId: "account-id" });
-		expect(verify).toHaveBeenCalledWith(PERSONAL_KEY);
+		expect(verify).toHaveBeenCalledWith(credential);
 	});
 
 	it.each([

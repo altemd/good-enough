@@ -62,6 +62,7 @@ export function setMemberDisabled(
 					.set({ revokedAt: now })
 					.where(
 						and(
+							eq(apiKeys.kind, "personal"),
 							eq(apiKeys.userId, memberId),
 							isNull(apiKeys.revokedAt),
 							gt(apiKeys.expiresAt, now),
