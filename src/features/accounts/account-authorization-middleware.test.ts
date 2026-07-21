@@ -10,7 +10,7 @@ const startServer = vi.hoisted(() => ({
 	setResponseStatus: vi.fn(),
 }));
 
-vi.mock("./account-function-runtime.server.ts", () => runtime);
+vi.mock("./session-function-runtime.server.ts", () => runtime);
 vi.mock("@tanstack/react-start/server", () => startServer);
 
 const administrator: CurrentAccount = {

@@ -13,10 +13,7 @@ import {
 	validateExactObject,
 } from "./account-function-input.ts";
 import {
-	logoutCurrentSession,
-	readCurrentAccount,
 	runAccountRead,
-	runBrowserSessionMutation,
 	runMutation,
 } from "./account-function-runtime.server.ts";
 import {
@@ -24,6 +21,11 @@ import {
 	readBootstrapToken,
 	readRegistrationEnabled,
 } from "./config.server.ts";
+import {
+	logoutCurrentSession,
+	readCurrentAccount,
+	runBrowserSessionMutation,
+} from "./session-function-runtime.server.ts";
 
 const authenticatedAccount = authorizeAccountFunction("authenticated");
 

@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+	runDisplayOnceSecretMutation,
+	runMutation,
+} from "./account-function-runtime.server.ts";
+import {
 	logoutCurrentSession,
 	readCurrentSession,
 	runBrowserSessionMutation,
-	runDisplayOnceSecretMutation,
-	runMutation,
 	setBrowserSessionCookie,
-} from "./account-function-runtime.server.ts";
+} from "./session-function-runtime.server.ts";
 
 const startServer = vi.hoisted(() => ({
 	deleteCookie: vi.fn(),

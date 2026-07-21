@@ -2,7 +2,7 @@ import { createMiddleware } from "@tanstack/react-start";
 import { setResponseStatus } from "@tanstack/react-start/server";
 
 import type { CurrentAccount } from "./account-contract.ts";
-import { readCurrentAccount } from "./account-function-runtime.server.ts";
+import { readCurrentAccount } from "./session-function-runtime.server.ts";
 
 export type AccountAuthorizationRequirement =
 	| "authenticated"
