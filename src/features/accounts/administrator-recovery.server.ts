@@ -2,11 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { and, eq } from "drizzle-orm";
 
-import {
-	type AccountDatabase,
-	getAccountDatabase,
-	runImmediateAccountTransaction,
-} from "./db.server.ts";
+import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
 import { users } from "./schema.ts";
 import { deleteUserSessions } from "./sessions.server.ts";
 import { createTemporaryPassword } from "./temporary-password.server.ts";
@@ -33,20 +29,23 @@ export async function resetAdministratorPasswordFromHost(
 	if (!administrator) return null;
 
 	const temporary = await createTemporaryPassword(now);
-	runImmediateAccountTransaction(database.sqlite, () => {
-		database.db
-			.update(users)
-			.set({
-				passwordHash: temporary.passwordHash,
-				mustChangePassword: true,
-				temporaryPasswordExpiresAt: temporary.expiresAt,
-				passwordChangedAt: now,
-				updatedAt: now,
-			})
-			.where(eq(users.id, administrator.id))
-			.run();
-		deleteUserSessions(administrator.id, database);
-	});
+	database.db.transaction(
+		(transaction) => {
+			transaction
+				.update(users)
+				.set({
+					passwordHash: temporary.passwordHash,
+					mustChangePassword: true,
+					temporaryPasswordExpiresAt: temporary.expiresAt,
+					passwordChangedAt: now,
+					updatedAt: now,
+				})
+				.where(eq(users.id, administrator.id))
+				.run();
+			deleteUserSessions(administrator.id, { db: transaction });
+		},
+		{ behavior: "immediate" },
+	);
 
 	return {
 		temporaryPassword: temporary.temporaryPassword,

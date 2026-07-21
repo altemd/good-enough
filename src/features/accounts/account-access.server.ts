@@ -12,11 +12,7 @@ import {
 	readRegistrationEnabled,
 } from "./config.server.ts";
 import { credentialSecretsEqual } from "./credential-secrets.server.ts";
-import {
-	type AccountDatabase,
-	getAccountDatabase,
-	runImmediateAccountTransaction,
-} from "./db.server.ts";
+import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
 import {
 	hashPassword,
 	isValidPassword,
@@ -66,30 +62,33 @@ export async function bootstrapAdministrator(
 
 	const passwordHash = await hashPassword(input.password);
 	try {
-		return runImmediateAccountTransaction(database.sqlite, () => {
-			const { value: existing } = database.db
-				.select({ value: count() })
-				.from(users)
-				.get() as { value: number };
-			if (existing !== 0) {
-				return { ok: false, code: "setup_complete" } as const;
-			}
-			database.db
-				.insert(users)
-				.values({
-					id: randomUUID(),
-					...normalized,
-					passwordHash,
-					role: "admin",
-					status: "active",
-					mustChangePassword: false,
-					createdAt: now,
-					updatedAt: now,
-					passwordChangedAt: now,
-				})
-				.run();
-			return { ok: true, value: {} } as const;
-		});
+		return database.db.transaction(
+			(transaction) => {
+				const { value: existing } = transaction
+					.select({ value: count() })
+					.from(users)
+					.get() as { value: number };
+				if (existing !== 0) {
+					return { ok: false, code: "setup_complete" } as const;
+				}
+				transaction
+					.insert(users)
+					.values({
+						id: randomUUID(),
+						...normalized,
+						passwordHash,
+						role: "admin",
+						status: "active",
+						mustChangePassword: false,
+						createdAt: now,
+						updatedAt: now,
+						passwordChangedAt: now,
+					})
+					.run();
+				return { ok: true, value: {} } as const;
+			},
+			{ behavior: "immediate" },
+		);
 	} catch {
 		return { ok: false, code: "configuration_error" };
 	}
@@ -140,39 +139,42 @@ export async function registerMember(
 
 	const passwordHash = await hashPassword(input.password);
 	try {
-		return runImmediateAccountTransaction(database.sqlite, () => {
-			const administrator = database.db
-				.select({ id: users.id })
-				.from(users)
-				.where(eq(users.role, "admin"))
-				.get();
-			if (!administrator) {
-				return { ok: false, code: "setup_required" } as const;
-			}
-			const duplicate = database.db
-				.select({ id: users.id })
-				.from(users)
-				.where(eq(users.normalizedUsername, normalized.normalizedUsername))
-				.get();
-			if (duplicate) {
-				return { ok: false, code: "username_unavailable" } as const;
-			}
-			database.db
-				.insert(users)
-				.values({
-					id: randomUUID(),
-					...normalized,
-					passwordHash,
-					role: "member",
-					status: "active",
-					mustChangePassword: false,
-					createdAt: now,
-					updatedAt: now,
-					passwordChangedAt: now,
-				})
-				.run();
-			return { ok: true, value: {} } as const;
-		});
+		return database.db.transaction(
+			(transaction) => {
+				const administrator = transaction
+					.select({ id: users.id })
+					.from(users)
+					.where(eq(users.role, "admin"))
+					.get();
+				if (!administrator) {
+					return { ok: false, code: "setup_required" } as const;
+				}
+				const duplicate = transaction
+					.select({ id: users.id })
+					.from(users)
+					.where(eq(users.normalizedUsername, normalized.normalizedUsername))
+					.get();
+				if (duplicate) {
+					return { ok: false, code: "username_unavailable" } as const;
+				}
+				transaction
+					.insert(users)
+					.values({
+						id: randomUUID(),
+						...normalized,
+						passwordHash,
+						role: "member",
+						status: "active",
+						mustChangePassword: false,
+						createdAt: now,
+						updatedAt: now,
+						passwordChangedAt: now,
+					})
+					.run();
+				return { ok: true, value: {} } as const;
+			},
+			{ behavior: "immediate" },
+		);
 	} catch (error) {
 		return {
 			ok: false,
@@ -249,8 +251,12 @@ export async function login(
 	}
 
 	clearRateLimit(`login:${normalizedKey}`);
-	const session = runImmediateAccountTransaction(database.sqlite, () =>
-		createBrowserSession(user.id, user.mustChangePassword, now, database),
+	const session = database.db.transaction(
+		(transaction) =>
+			createBrowserSession(user.id, user.mustChangePassword, now, {
+				db: transaction,
+			}),
+		{ behavior: "immediate" },
 	);
 	return {
 		ok: true,
@@ -279,24 +285,29 @@ export async function changePassword(
 		return { ok: false, code: "invalid_credentials" };
 	}
 	const passwordHash = await hashPassword(input.newPassword);
-	return runImmediateAccountTransaction(database.sqlite, () => {
-		database.db
-			.update(users)
-			.set({
-				passwordHash,
-				mustChangePassword: false,
-				temporaryPasswordExpiresAt: null,
-				passwordChangedAt: now,
-				updatedAt: now,
-			})
-			.where(eq(users.id, account.id))
-			.run();
-		deleteUserSessions(account.id, database);
-		return {
-			ok: true,
-			value: createBrowserSession(account.id, false, now, database),
-		} as const;
-	});
+	return database.db.transaction(
+		(transaction) => {
+			transaction
+				.update(users)
+				.set({
+					passwordHash,
+					mustChangePassword: false,
+					temporaryPasswordExpiresAt: null,
+					passwordChangedAt: now,
+					updatedAt: now,
+				})
+				.where(eq(users.id, account.id))
+				.run();
+			deleteUserSessions(account.id, { db: transaction });
+			return {
+				ok: true,
+				value: createBrowserSession(account.id, false, now, {
+					db: transaction,
+				}),
+			} as const;
+		},
+		{ behavior: "immediate" },
+	);
 }
 
 function isNormalizedUsernameConflict(error: unknown): boolean {
