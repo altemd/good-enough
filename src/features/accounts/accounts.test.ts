@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -9,11 +10,7 @@ import {
 	login,
 	registerMember,
 } from "./account-access.server.ts";
-import {
-	type AccountDatabase,
-	createAccountDatabase,
-	runImmediateAccountTransaction,
-} from "./db.server.ts";
+import { type AccountDatabase, createAccountDatabase } from "./db.server.ts";
 import {
 	issueTemporaryPassword,
 	setMemberDisabled,
@@ -334,12 +331,15 @@ describe("account lifecycle", () => {
 			"create table transaction_probe (value text not null)",
 		);
 		expect(() =>
-			runImmediateAccountTransaction(database.sqlite, () => {
-				database.sqlite.exec(
-					"insert into transaction_probe (value) values ('uncommitted')",
-				);
-				throw new Error("synthetic transaction failure");
-			}),
+			database.db.transaction(
+				(transaction) => {
+					transaction.run(
+						sql`insert into transaction_probe (value) values ('uncommitted')`,
+					);
+					throw new Error("synthetic transaction failure");
+				},
+				{ behavior: "immediate" },
+			),
 		).toThrow("synthetic transaction failure");
 		expect(
 			database.sqlite
