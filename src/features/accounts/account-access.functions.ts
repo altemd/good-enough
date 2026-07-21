@@ -1,9 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import { authorizeAccountFunction } from "./account-authorization.middleware.ts";
 import {
 	requireString,
 	validateExactObject,
 } from "./account-function-input.ts";
+
+const authenticatedAccount = authorizeAccountFunction("authenticated");
 
 interface CredentialsInput {
 	username: string;
@@ -110,22 +113,23 @@ export const logoutAccount = createServerFn({ method: "POST" }).handler(
 );
 
 export const changeAccountPassword = createServerFn({ method: "POST" })
+	.middleware([authenticatedAccount])
 	.validator(validateChangePasswordInput)
-	.handler(async ({ data }) => {
-		const { readCurrentAccount, runMutation, setBrowserSessionCookie } =
+	.handler(async ({ context, data }) => {
+		const { runAuthorizedAccountMutation, setBrowserSessionCookie } =
 			await import("./account-function-runtime.server.ts");
-		return runMutation(async () => {
-			const [{ changePassword }, { readAppOrigin }] = await Promise.all([
-				import("./account-access.server.ts"),
-				import("./config.server.ts"),
-			]);
-			readAppOrigin();
-			const account = await readCurrentAccount();
-			if (!account) {
-				return { ok: false as const, code: "forbidden" as const };
-			}
-			return changePassword(account, data);
-		}, setBrowserSessionCookie);
+		return runAuthorizedAccountMutation(
+			context.accountAuthorization,
+			async (account) => {
+				const [{ changePassword }, { readAppOrigin }] = await Promise.all([
+					import("./account-access.server.ts"),
+					import("./config.server.ts"),
+				]);
+				readAppOrigin();
+				return changePassword(account, data);
+			},
+			setBrowserSessionCookie,
+		);
 	});
 
 function validateCredentialsInput(value: unknown): CredentialsInput {

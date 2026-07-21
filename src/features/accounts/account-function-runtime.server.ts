@@ -1,5 +1,6 @@
 import "@tanstack/react-start/server-only";
 
+import type { AccountAuthorization } from "./account-authorization.middleware.ts";
 import type {
 	AccountMutationResult,
 	CurrentAccount,
@@ -47,6 +48,37 @@ export async function runAccountRead<T>(
 		setResponseStatus(500);
 		throw new Error("Account service unavailable");
 	}
+}
+
+export async function runAuthorizedAccountRead<T>(
+	authorization: AccountAuthorization,
+	operation: (account: CurrentAccount) => T | Promise<T>,
+): Promise<T | null> {
+	return runAccountRead(() => {
+		if (authorization.status === "failure") {
+			throw new Error("Account authorization unavailable");
+		}
+		if (authorization.status === "denied") return null;
+		return operation(authorization.account);
+	});
+}
+
+export async function runAuthorizedAccountMutation<T>(
+	authorization: AccountAuthorization,
+	operation: (
+		account: CurrentAccount,
+	) => AccountMutationResult<T> | Promise<AccountMutationResult<T>>,
+	onSuccess?: (value: T) => void | Promise<void>,
+): Promise<AccountMutationResult<T>> {
+	return runMutation(() => {
+		if (authorization.status === "failure") {
+			throw new Error("Account authorization unavailable");
+		}
+		if (authorization.status === "denied") {
+			return { ok: false, code: "forbidden" };
+		}
+		return operation(authorization.account);
+	}, onSuccess);
 }
 
 export async function setBrowserSessionCookie(session: {

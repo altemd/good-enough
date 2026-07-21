@@ -8,6 +8,8 @@ dist-ssr
 .tanstack
 .wrangler
 .output
+.pnpm-store
+data
 .vinxi
 __unconfig*
 todos.json

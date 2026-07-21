@@ -1,9 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import { authorizeAccountFunction } from "./account-authorization.middleware.ts";
 import {
 	requireString,
 	validateExactObject,
 } from "./account-function-input.ts";
+
+const administratorAccount = authorizeAccountFunction("administrator");
 
 interface MemberInput {
 	memberId: string;
@@ -13,55 +16,61 @@ interface SetMemberDisabledInput extends MemberInput {
 	disabled: boolean;
 }
 
-export const getMembers = createServerFn({ method: "GET" }).handler(
-	async () => {
-		const { readCurrentAccount, runAccountRead } = await import(
+export const getMembers = createServerFn({ method: "GET" })
+	.middleware([administratorAccount])
+	.handler(async ({ context }) => {
+		const { runAuthorizedAccountRead } = await import(
 			"./account-function-runtime.server.ts"
 		);
-		return runAccountRead(async () => {
-			const { listMembers } = await import("./member-administration.server.ts");
-			const account = await readCurrentAccount();
-			return account ? listMembers(account) : null;
-		});
-	},
-);
+		return runAuthorizedAccountRead(
+			context.accountAuthorization,
+			async (account) => {
+				const { listMembers } = await import(
+					"./member-administration.server.ts"
+				);
+				return listMembers(account);
+			},
+		);
+	});
 
 export const setMemberDisabled = createServerFn({ method: "POST" })
+	.middleware([administratorAccount])
 	.validator(validateSetMemberDisabledInput)
-	.handler(async ({ data }) => {
-		const { readCurrentAccount, runMutation } = await import(
+	.handler(async ({ context, data }) => {
+		const { runAuthorizedAccountMutation } = await import(
 			"./account-function-runtime.server.ts"
 		);
-		return runMutation(async () => {
-			const administration = await import("./member-administration.server.ts");
-			const account = await readCurrentAccount();
-			if (!account) {
-				return { ok: false as const, code: "forbidden" as const };
-			}
-			return administration.setMemberDisabled(
-				account,
-				data.memberId,
-				data.disabled,
-			);
-		});
+		return runAuthorizedAccountMutation(
+			context.accountAuthorization,
+			async (account) => {
+				const administration = await import(
+					"./member-administration.server.ts"
+				);
+				return administration.setMemberDisabled(
+					account,
+					data.memberId,
+					data.disabled,
+				);
+			},
+		);
 	});
 
 export const issueMemberTemporaryPassword = createServerFn({ method: "POST" })
+	.middleware([administratorAccount])
 	.validator(validateMemberInput)
-	.handler(async ({ data }) => {
-		const { readCurrentAccount, runMutation } = await import(
+	.handler(async ({ context, data }) => {
+		const { runAuthorizedAccountMutation } = await import(
 			"./account-function-runtime.server.ts"
 		);
-		return runMutation(async () => {
-			const { issueTemporaryPassword } = await import(
-				"./member-administration.server.ts"
-			);
-			const account = await readCurrentAccount();
-			if (!account) {
-				return { ok: false as const, code: "forbidden" as const };
-			}
-			return issueTemporaryPassword(account, data.memberId);
-		});
+		return runAuthorizedAccountMutation(
+			context.accountAuthorization,
+			async (account) => {
+				const { issueTemporaryPassword } = await import(
+					"./member-administration.server.ts"
+				);
+				return issueTemporaryPassword(account, data.memberId);
+			},
+		);
 	});
 
 function validateMemberInput(value: unknown): MemberInput {
