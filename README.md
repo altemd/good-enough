@@ -30,27 +30,45 @@ llama-server \
   --parallel 1
 ```
 
-Copy `.env.example` to `.env` and replace its synthetic API key before starting
-the gateway. Do not commit the resulting `.env` file or a real credential.
+Good Enough requires Node 24 or newer. Copy `.env.example` to `.env` and replace
+the synthetic bootstrap token. Do not commit the resulting `.env` file or real
+credentials.
 The gateway writes one structured metadata event per request to stdout. It does
-not log prompt, completion, tool-argument, credential, or raw streaming data.
-Numeric metadata is extracted only from explicitly allowlisted protocol fields;
-other numbers in an API response are ignored.
+not log prompt, completion, tool-argument, credential, principal, or raw
+streaming data. Numeric metadata is extracted only from explicitly allowlisted
+protocol fields. If external infrastructure captures stdout, those events are
+retained operational telemetry and may be correlated with separate ingress
+logs; this application does not currently impose a log-retention period.
 
-### Pilot authentication
+### Accounts and personal API keys
 
-Every public `/v1/*` request requires a statically configured pilot API key.
-`INFERENCE_API_KEYS` is a JSON array mapping stable, non-secret principal IDs to
-keys:
+The first administrator is created at `/setup` with the trusted
+`ACCOUNT_BOOTSTRAP_TOKEN`. Public registration cannot race ahead of setup. Once
+the administrator exists, registration is open by default and always creates a
+`member`. Set `ACCOUNT_REGISTRATION_ENABLED=false` and restart to close new
+registrations without affecting existing accounts.
 
-```dotenv
-INFERENCE_API_KEYS=[{"id":"pilot-user","key":"replace-with-a-random-32-byte-secret"}]
-```
+Browser authentication uses usernames, passwords, and revocable database-backed
+sessions. Passwords use salted, versioned scrypt hashes. There is no email,
+OAuth, MFA, or public password recovery. The administrator may issue a
+display-once temporary member password; recovery of the sole administrator
+requires host access through `pnpm account:reset-admin -- <username>`.
 
-Keys must be unique, contain no whitespace, and be between 32 and 256 UTF-8
-bytes. Principal IDs must be unique, start with a letter or number, and contain
-only letters, numbers, underscores, or hyphens. Missing or invalid
-configuration fails closed with a sanitized `500`.
+Users create unnamed personal API keys in the dashboard. Each key is displayed
+once, stored only as a digest plus non-secret prefix, and expires exactly seven
+days after creation. Expiry does not slide with use. Lost, expired, or revoked
+keys cannot be recovered or renewed. The dashboard shows only prefix, creation
+date, expiry date, and active/expired/revoked state.
+
+Drizzle ORM owns the SQLite schema and committed migrations through Node's
+built-in `node:sqlite` driver. The database defaults to
+`./data/good-enough.sqlite` and stores account, session, and key lifecycle state
+only.
+
+### Inference authentication
+
+Every public `/v1/*` request requires an active, unexpired database-backed
+personal API key.
 
 OpenAI-compatible routes use Bearer authentication:
 
@@ -77,10 +95,58 @@ credentials receive the same generic `401`. OpenAI errors use
 are stripped before llama-server, and neither credentials nor principal IDs are
 written to metadata.
 
-This is deliberately limited pilot configuration: keys remain in the process
-environment, and rotation or revocation requires changing the environment and
-restarting the application. Sign-in, persistent hashed keys, display-once key
-creation, and self-service revocation remain deferred.
+A database or migration failure returns a sanitized `500`.
+
+### Privacy boundary
+
+Good Enough uses **zero inference-content retention**: it does not persist
+prompts, responses, reasoning, tool arguments, request bodies, or per-user
+inference activity. It does persist account records, password hashes, browser
+sessions, API-key digests, prefixes, lifecycle dates, and revocation state. It
+does not persist per-user request counts, token totals, model activity, TTFT,
+throughput, usage dates, or key last-use timestamps. Clients may consume usage
+returned in their own protocol responses without the service saving it to
+their account. This is intentionally more precise than an ambiguous
+absolute-ZDR claim.
+
+### TODO: instant one-hour anonymous API demo
+
+Let a first-time visitor try the real compatibility API before registering,
+without turning the demo credential into an account or retaining its inference
+activity:
+
+- Put a prominent `Start one-hour demo` action on the public landing page. Use
+  an explicit user action rather than issuing a credential during page render;
+  crawlers, link previews, and speculative browser loads must not consume demo
+  credentials automatically.
+- Issue an opaque, cryptographically random demo API token, display it once,
+  and expire it exactly one hour after the trusted server creation time. It
+  cannot be renewed, recovered, extended, or converted into a personal key;
+  registration creates a separate account and seven-day key.
+- Store only the selector, digest, creation time, and expiry needed to validate
+  and revoke the demo token. Do not create a hidden `users` row, attach the
+  token to an account, or record request counts, models, usage, prompts, or
+  responses. Remove expired demo-token state on a bounded cleanup schedule.
+- Accept the token through the existing OpenAI Bearer and Anthropic `x-api-key`
+  contracts. At expiry it receives the same generic protocol-specific `401` as
+  an unknown key, before request-body reads, admission, or upstream contact.
+- Keep the one-active-generation limit and immediate `429` behavior. Demo
+  traffic receives no reserved capacity, queue, priority, or bypass.
+- Add a trusted emergency enable switch and a global issuance ceiling. Decide
+  those defaults before implementation. Without email, CAPTCHA, a durable
+  device identity, or retained IP addresses, the service cannot honestly
+  enforce “one demo per person”; clearing browser state can obtain another
+  token. A cookie can reduce accidental repeats but is not an abuse boundary.
+- Do not embed a shared token in HTML or JavaScript. Every issued token must be
+  independently expirable so one copied value does not become a permanent
+  public credential.
+- Keep demo credential IDs and selectors out of metadata and stdout. Preserve
+  the zero inference-content retention policy and document that externally
+  captured content-free stdout remains operational telemetry.
+- Test explicit issuance, one-time display, exact one-hour expiry, issuance
+  throttling, emergency disablement, both vendor protocols, database failure,
+  no upstream contact after rejection, no inference writes, and stdout/privacy
+  sentinels.
 
 ### Capacity behavior
 
@@ -202,26 +268,22 @@ Before increasing concurrency above one:
 
 ### TODO: ephemeral live inference console
 
-After database-backed accounts and personal API keys provide an authenticated
-user mapping, add a terminal-inspired, read-only activity panel to the
-dashboard. It should recreate the experience of observing local inference
-hardware without exposing a shell, raw llama.cpp logs, or process stdout:
+Add a terminal-inspired, read-only activity panel that shows anonymous live
+system state and ephemeral process-level aggregates without exposing a shell,
+raw llama.cpp logs, process stdout, or user-linked inference activity:
 
-- Deliver typed, privacy-filtered events through a private authenticated live
-  source, likely server-sent events (SSE), with `Cache-Control: no-store` and no
-  cross-user broadcast. Use the principal only as a process-local routing key;
-  never include it in event payloads or logs.
-- Send events only to connected browser sessions belonging to the API-key
-  owner. Do not persist, replay, or expose a history endpoint; discard events
-  when no matching dashboard is connected. A page load or refresh starts with
-  an empty panel, and each tab retains at most its latest 200 lines without
-  using local storage.
+- Deliver typed, privacy-filtered process aggregates through a private
+  authenticated live source, likely SSE, with `Cache-Control: no-store`. Never
+  route inference events by principal, include account/key identifiers, or
+  reconstruct user histories.
+- Do not persist, replay, expose a history endpoint, or use browser local
+  storage. A page load or process restart begins without history.
 - Show request lifecycle, status, duration, TTFT, prompt and generation
   throughput, input/output token counts, and cache reuse. Show context
   utilization only when both used tokens and effective capacity come from
   authoritative sources; never estimate it from text, bytes, or event counts.
-- During the user's own active request, show a compact hardware snapshot when
-  supported: unified-memory use, GPU activity, temperature, and power. Render
+- Show a compact anonymous hardware snapshot when supported: unified-memory
+  use, GPU activity, temperature, and power. Render
   unavailable sensors as unavailable rather than zero. Reserve process memory,
   swap/zram, page pressure, device faults, clocks, and throttling details for
   administrators.
@@ -234,9 +296,8 @@ hardware without exposing a shell, raw llama.cpp logs, or process stdout:
 - Revisit the current production stdout recorder as part of this UI phase. The
   browser transport must not depend on stdout, and per-request stdout must be
   removed or governed by a separate explicit retention policy.
-- Test own-user delivery, cross-user isolation, disposal while disconnected,
-  empty state after refresh, the 200-line bound, unsupported sensors, content
-  exclusion, and unambiguous real-versus-simulated labeling.
+- Test absence of user linkage, empty state after refresh/restart, unsupported
+  sensors, content exclusion, and unambiguous real-versus-simulated labeling.
 
 ### TODO: SSD-protected model loading
 
@@ -289,9 +350,10 @@ development, product demonstrations, dashboard testing, and capacity planning:
   contacted and that displayed speed is simulated from benchmark data.
 - Support deterministic seeded completion, cancellation, overload, slow
   generation, and backend-failure scenarios.
-- Do not retain user-entered demo prompts. Keep simulated usage separate from
-  real usage counters and regression-test that it cannot fall through to
-  llama-server, contact an external API, or be mistaken for real inference.
+- Do not retain user-entered demo prompts. Keep simulated values separate from
+  ephemeral real process aggregates and regression-test that it cannot fall
+  through to llama-server, contact an external API, or be mistaken for real
+  inference.
 
 # Building For Production
 
@@ -310,9 +372,10 @@ pnpm test
 ```
 
 The built-server regression harness compiles the production application, starts
-an isolated loopback fake llama-server, and checks authentication, routing,
-shared capacity, stream cancellation, release paths, request IDs, metadata
-cardinality, and log privacy:
+an isolated loopback fake llama-server, migrates a temporary SQLite database,
+and checks personal-key authentication, key/account rejection, routing, shared
+capacity, stream cancellation, release paths, request IDs, metadata cardinality,
+and log privacy:
 
 ```bash
 pnpm test:runtime
