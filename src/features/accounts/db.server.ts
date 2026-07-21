@@ -36,22 +36,13 @@ export function createAccountDatabase(
 }
 
 export type AccountDatabase = ReturnType<typeof createAccountDatabase>;
+export type AccountTransaction = Parameters<
+	Parameters<AccountDatabase["db"]["transaction"]>[0]
+>[0];
+export type AccountQueryDatabase = {
+	db: Pick<AccountTransaction, "delete" | "insert" | "select" | "update">;
+};
 let singleton: AccountDatabase | undefined;
-
-export function runImmediateAccountTransaction<T>(
-	sqlite: DatabaseSync,
-	callback: () => T,
-): T {
-	sqlite.exec("BEGIN IMMEDIATE");
-	try {
-		const result = callback();
-		sqlite.exec("COMMIT");
-		return result;
-	} catch (error) {
-		sqlite.exec("ROLLBACK");
-		throw error;
-	}
-}
 
 export function getAccountDatabase(): AccountDatabase {
 	if (!singleton) {

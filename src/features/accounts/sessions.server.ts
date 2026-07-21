@@ -5,7 +5,11 @@ import { and, asc, eq, gt, lte } from "drizzle-orm";
 
 import { readAppOrigin } from "./config.server.ts";
 import { digestCredentialSecret } from "./credential-secrets.server.ts";
-import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
+import {
+	type AccountDatabase,
+	type AccountQueryDatabase,
+	getAccountDatabase,
+} from "./db.server.ts";
 import { sessions, users } from "./schema.ts";
 
 const NORMAL_SESSION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -30,7 +34,7 @@ export function createBrowserSession(
 	userId: string,
 	restricted: boolean,
 	now = Date.now(),
-	database: AccountDatabase = getAccountDatabase(),
+	database: AccountQueryDatabase = getAccountDatabase(),
 ) {
 	const token = randomBytes(32).toString("base64url");
 	const expiresAt =
@@ -110,7 +114,7 @@ export function deleteBrowserSession(
 
 export function deleteUserSessions(
 	userId: string,
-	database: AccountDatabase = getAccountDatabase(),
+	database: AccountQueryDatabase = getAccountDatabase(),
 ) {
 	database.db.delete(sessions).where(eq(sessions.userId, userId)).run();
 }
