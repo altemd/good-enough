@@ -72,7 +72,7 @@ only.
 ### Inference authentication
 
 Every public `/v1/*` request requires an active, unexpired database-backed
-personal API key.
+personal API key or anonymous demo token.
 
 OpenAI-compatible routes use Bearer authentication:
 
@@ -113,44 +113,51 @@ returned in their own protocol responses without the service saving it to
 their account. This is intentionally more precise than an ambiguous
 absolute-ZDR claim.
 
-### TODO: instant one-hour anonymous API demo
+### Instant one-hour anonymous API demo
 
-Let a first-time visitor try the real compatibility API before registering,
-without turning the demo credential into an account or retaining its inference
-activity:
+The account feature exposes demo-key creation as a TanStack server function for
+the same application UI, matching personal-key creation. It accepts only an
+empty input object, uses the application's `APP_ORIGIN` CSRF policy, and returns
+the display-once `apiKey`, `createdAt`, and `expiresAt` values with
+`Cache-Control: no-store`. Its generated RPC transport is internal application
+plumbing, not a supported public `/api/*` contract.
+
+Creation is available only after an administrator has completed setup. Set
+`PUBLIC_DEMO_ENABLED=false` and restart to stop new issuance without
+invalidating tokens that have already been issued.
+
+The service stores only a selector, digest, prefix, creation time, and expiry.
+Tokens expire exactly one hour after the trusted server creation time and
+cannot be renewed, recovered, extended, revoked, or converted into personal
+keys. At most 25 unexpired demo tokens may exist. Separately, each Node process
+accepts at most ten issuance attempts per ten minutes. Both overload cases
+produce `429` server-function responses with a calculated `Retry-After`; the
+process-local attempt limit resets on restart.
+
+Demo tokens use the same OpenAI Bearer and Anthropic `x-api-key` contracts as
+personal keys. They receive no reserved inference capacity, queue, priority, or
+bypass, and authentication never records use or extends expiry. A copied token
+works until its absolute expiry, so the browser must treat the one-time response
+as a secret.
+
+The remaining UI checkpoint is to let a first-time visitor try the real
+compatibility API before registering without turning the demo credential into
+an account or retaining its inference activity:
 
 - Put a prominent `Start one-hour demo` action on the public landing page. Use
   an explicit user action rather than issuing a credential during page render;
   crawlers, link previews, and speculative browser loads must not consume demo
   credentials automatically.
-- Issue an opaque, cryptographically random demo API token, display it once,
-  and expire it exactly one hour after the trusted server creation time. It
-  cannot be renewed, recovered, extended, or converted into a personal key;
-  registration creates a separate account and seven-day key.
-- Store only the selector, digest, creation time, and expiry needed to validate
-  and revoke the demo token. Do not create a hidden `users` row, attach the
-  token to an account, or record request counts, models, usage, prompts, or
-  responses. Remove expired demo-token state on a bounded cleanup schedule.
-- Accept the token through the existing OpenAI Bearer and Anthropic `x-api-key`
-  contracts. At expiry it receives the same generic protocol-specific `401` as
-  an unknown key, before request-body reads, admission, or upstream contact.
-- Keep the one-active-generation limit and immediate `429` behavior. Demo
-  traffic receives no reserved capacity, queue, priority, or bypass.
-- Add a trusted emergency enable switch and a global issuance ceiling. Decide
-  those defaults before implementation. Without email, CAPTCHA, a durable
-  device identity, or retained IP addresses, the service cannot honestly
-  enforce “one demo per person”; clearing browser state can obtain another
-  token. A cookie can reduce accidental repeats but is not an abuse boundary.
-- Do not embed a shared token in HTML or JavaScript. Every issued token must be
-  independently expirable so one copied value does not become a permanent
-  public credential.
-- Keep demo credential IDs and selectors out of metadata and stdout. Preserve
-  the zero inference-content retention policy and document that externally
-  captured content-free stdout remains operational telemetry.
-- Test explicit issuance, one-time display, exact one-hour expiry, issuance
-  throttling, emergency disablement, both vendor protocols, database failure,
-  no upstream contact after rejection, no inference writes, and stdout/privacy
-  sentinels.
+- Display the returned key only in the creation result, provide an explicit copy
+  action, and keep it in page memory rather than a persistent browser store.
+- Connect the token to the focused chat UI without embedding a shared token in
+  HTML or JavaScript and without logging prompts or responses.
+
+Without email, CAPTCHA, a durable device identity, or retained IP addresses,
+the service cannot honestly enforce “one demo per person”; another explicit
+request can obtain another token while capacity and the process-local issuance
+limit permit it. Same-origin validation prevents browser-based cross-site
+issuance but is not an identity or scripted-abuse boundary.
 
 ### Capacity behavior
 

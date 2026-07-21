@@ -3,9 +3,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { authorizeAccountFunction } from "./account-authorization.middleware.ts";
 import {
 	requireString,
+	validateEmptyInput,
 	validateExactObject,
 } from "./account-function-input.ts";
-import { runMutation } from "./account-function-runtime.server.ts";
+import {
+	runDisplayOnceSecretMutation,
+	runMutation,
+} from "./account-function-runtime.server.ts";
+import { issueDemoApiToken } from "./demo-api-tokens.server.ts";
 import {
 	createPersonalApiKey as createKey,
 	listPersonalApiKeys,
@@ -26,7 +31,7 @@ export const createPersonalApiKey = createServerFn({ method: "POST" })
 	.middleware([unrestrictedAccount])
 	.validator(validateEmptyInput)
 	.handler(async ({ context }) =>
-		runMutation(() => createKey(context.account)),
+		runDisplayOnceSecretMutation(() => createKey(context.account)),
 	);
 
 export const revokePersonalApiKey = createServerFn({ method: "POST" })
@@ -36,9 +41,9 @@ export const revokePersonalApiKey = createServerFn({ method: "POST" })
 		runMutation(() => revokeKey(context.account, data.prefix)),
 	);
 
-function validateEmptyInput(value: unknown): Record<string, never> {
-	return validateExactObject(value, [], () => ({}));
-}
+export const createDemoApiToken = createServerFn({ method: "POST" })
+	.validator(validateEmptyInput)
+	.handler(async () => runDisplayOnceSecretMutation(() => issueDemoApiToken()));
 
 function validateRevokeKeyInput(value: unknown): RevokeKeyInput {
 	return validateExactObject(value, ["prefix"], (object) => ({

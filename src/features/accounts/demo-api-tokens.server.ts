@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { and, count, eq, gt, inArray, lte, min } from "drizzle-orm";
 
+import type { AccountMutationResult } from "./account-contract.ts";
 import { readPublicDemoEnabled } from "./config.server.ts";
 import { createDemoApiTokenMaterial } from "./credential-secrets.server.ts";
 import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
@@ -15,26 +16,14 @@ const ISSUANCE_RATE_LIMIT_KEY = "demo-api-token-issuance:global";
 const ISSUANCE_RATE_LIMIT_MAXIMUM = 10;
 const ISSUANCE_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 
-export type DemoApiTokenIssuanceResult =
-	| {
-			ok: true;
-			value: { apiKey: string; createdAt: number; expiresAt: number };
-	  }
-	| {
-			ok: false;
-			code:
-				| "capacity_reached"
-				| "configuration_error"
-				| "demo_disabled"
-				| "rate_limited"
-				| "setup_required";
-			retryAfterSeconds?: number;
-	  };
-
 export function issueDemoApiToken(
 	database: AccountDatabase = getAccountDatabase(),
 	now = Date.now(),
-): DemoApiTokenIssuanceResult {
+): AccountMutationResult<{
+	apiKey: string;
+	createdAt: number;
+	expiresAt: number;
+}> {
 	try {
 		if (!readPublicDemoEnabled()) {
 			return { ok: false, code: "demo_disabled" };

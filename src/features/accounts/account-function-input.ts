@@ -18,6 +18,10 @@ export function validateExactObject<T>(
 	return map(object);
 }
 
+export function validateEmptyInput(value: unknown): Record<string, never> {
+	return validateExactObject(value, [], () => ({}));
+}
+
 export function requireString(value: unknown): string {
 	if (typeof value !== "string") {
 		throw new Error("Invalid input");
