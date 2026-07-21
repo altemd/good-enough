@@ -12,11 +12,7 @@ import {
 	parsePersonalApiKey,
 	parsePersonalApiKeyPrefix,
 } from "./credential-secrets.server.ts";
-import {
-	type AccountDatabase,
-	getAccountDatabase,
-	runImmediateAccountTransaction,
-} from "./db.server.ts";
+import { type AccountDatabase, getAccountDatabase } from "./db.server.ts";
 import { apiKeys, users } from "./schema.ts";
 
 const API_KEY_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
@@ -35,44 +31,47 @@ export function createPersonalApiKey(
 	if (account.mustChangePassword) {
 		return { ok: false, code: "forbidden" };
 	}
-	return runImmediateAccountTransaction(database.sqlite, () => {
-		const { value: activeCount } = database.db
-			.select({ value: count() })
-			.from(apiKeys)
-			.where(
-				and(
-					eq(apiKeys.userId, account.id),
-					isNull(apiKeys.revokedAt),
-					gt(apiKeys.expiresAt, now),
-				),
-			)
-			.get() as { value: number };
-		if (activeCount >= MAX_ACTIVE_API_KEYS) {
-			return { ok: false, code: "forbidden" } as const;
-		}
-		const key = createPersonalApiKeyMaterial();
-		const expiresAt = now + API_KEY_LIFETIME_MS;
-		database.db
-			.insert(apiKeys)
-			.values({
-				selector: key.selector,
-				userId: account.id,
-				prefix: key.prefix,
-				secretDigest: key.secretDigest,
-				createdAt: now,
-				expiresAt,
-			})
-			.run();
-		return {
-			ok: true,
-			value: {
-				apiKey: key.apiKey,
-				prefix: key.prefix,
-				createdAt: now,
-				expiresAt,
-			},
-		} as const;
-	});
+	return database.db.transaction(
+		(transaction) => {
+			const { value: activeCount } = transaction
+				.select({ value: count() })
+				.from(apiKeys)
+				.where(
+					and(
+						eq(apiKeys.userId, account.id),
+						isNull(apiKeys.revokedAt),
+						gt(apiKeys.expiresAt, now),
+					),
+				)
+				.get() as { value: number };
+			if (activeCount >= MAX_ACTIVE_API_KEYS) {
+				return { ok: false, code: "forbidden" } as const;
+			}
+			const key = createPersonalApiKeyMaterial();
+			const expiresAt = now + API_KEY_LIFETIME_MS;
+			transaction
+				.insert(apiKeys)
+				.values({
+					selector: key.selector,
+					userId: account.id,
+					prefix: key.prefix,
+					secretDigest: key.secretDigest,
+					createdAt: now,
+					expiresAt,
+				})
+				.run();
+			return {
+				ok: true,
+				value: {
+					apiKey: key.apiKey,
+					prefix: key.prefix,
+					createdAt: now,
+					expiresAt,
+				},
+			} as const;
+		},
+		{ behavior: "immediate" },
+	);
 }
 
 export function listPersonalApiKeys(
@@ -117,20 +116,23 @@ export function revokePersonalApiKey(
 	if (account.mustChangePassword || !selector) {
 		return { ok: false, code: "forbidden" };
 	}
-	return runImmediateAccountTransaction(database.sqlite, () => {
-		database.db
-			.update(apiKeys)
-			.set({ revokedAt: now })
-			.where(
-				and(
-					eq(apiKeys.selector, selector),
-					eq(apiKeys.userId, account.id),
-					isNull(apiKeys.revokedAt),
-				),
-			)
-			.run();
-		return { ok: true, value: {} } as const;
-	});
+	return database.db.transaction(
+		(transaction) => {
+			transaction
+				.update(apiKeys)
+				.set({ revokedAt: now })
+				.where(
+					and(
+						eq(apiKeys.selector, selector),
+						eq(apiKeys.userId, account.id),
+						isNull(apiKeys.revokedAt),
+					),
+				)
+				.run();
+			return { ok: true, value: {} } as const;
+		},
+		{ behavior: "immediate" },
+	);
 }
 
 export function authenticatePersonalApiKey(
