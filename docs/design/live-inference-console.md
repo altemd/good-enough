@@ -1,4 +1,4 @@
-# Personal live inference console transport foundation
+# Personal live inference console
 
 ## Current checkpoint
 
@@ -14,6 +14,12 @@ When an account has no subscriber, the source immediately discards the event.
 It does not persist, replay, or log events. Production stdout also receives no
 per-request inference metadata, so an ephemeral UI feed does not accidentally
 become retained history through a log collector.
+
+The authenticated `/account/live-console` page consumes that stream and shows
+the newest 200 projected lifecycle lines in React memory. It starts empty,
+labels the source as live and not simulated, and displays an explicit warning
+when the server reports an event gap. Refreshing or leaving the page destroys
+the visible history.
 
 ## Runtime ownership
 
@@ -41,6 +47,12 @@ disconnect cleanup. `src/routes/api/live-console/events.ts` is the thin
 TanStack file-route binding required by the router. The route sits outside the
 authenticated layout because navigation guards provide user experience, while
 the stream handler independently enforces the security boundary.
+
+`personal-console-events.ts` is the browser projection boundary. It accepts
+only the five named lifecycle/transport events, validates the fields it uses,
+and returns a small display model rather than retaining raw JSON. Unexpected
+fields are discarded. `ui/personal-live-console-page.tsx` owns the EventSource
+connection, connection state, 200-line React-memory bound, and presentation.
 
 ## Request flow
 
@@ -112,15 +124,14 @@ gateway contract must therefore remain safe for browser delivery. New fields
 require the same privacy review as a public response field, and tests must keep
 prohibited data out of the complete event.
 
-## Next checkpoint
+## Current UI boundary
 
-Add the authenticated personal console UI. It should consume the existing SSE
-route, render the typed lifecycle events as a privacy-filtered,
-terminal-inspired panel, show a clear empty state on initial load, and retain
-at most the latest 200 rendered lines in React memory. Refresh must begin empty,
-and the UI must not use local storage, session storage, a history endpoint, or
-stdout-based transport. It should surface `console.gap` as an explicit
-lost-live-events line instead of pretending the visible sequence is complete.
+The UI consumes the existing SSE route, renders typed lifecycle events as a
+privacy-filtered terminal-inspired panel, shows a clear empty state on initial
+load, and retains at most the latest 200 rendered lines in React memory. It does
+not use local storage, session storage, a history endpoint, or stdout-based
+transport. `console.gap` becomes an explicit lost-live-events line instead of
+allowing the visible sequence to look complete.
 
 Anonymous demo tokens currently authenticate as a separate synthetic
 principal, not as a signed-in account. They therefore have no personal browser
@@ -132,4 +143,5 @@ Because the source is process-local, the SSE route and inference request must
 reach the same Node process. Multi-process deployment requires an explicit
 ephemeral cross-process transport before this behavior can be claimed there.
 Global hardware telemetry and all-user operational activity are a separate
-administrator concern, not part of the personal request console.
+administrator concern, not part of the personal request console. Extending the
+page with those concerns requires a separate product and security checkpoint.

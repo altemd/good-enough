@@ -53,6 +53,13 @@ without replaying them. The server revalidates the captured browser session at
 least every 15 seconds and closes the stream when the session expires, is
 revoked, becomes restricted, or its account is disabled.
 
+Signed-in users can open `/account/live-console` to observe that stream. The
+terminal-inspired panel projects only allowlisted lifecycle fields, labels the
+source as live rather than simulated, and retains at most 200 rendered lines in
+React memory. It starts empty after a page load, exposes transport loss as a
+visible gap, and does not use local storage, session storage, a history
+endpoint, or raw process output.
+
 ### Accounts and personal API keys
 
 The first administrator is created at `/setup` with the trusted
@@ -314,19 +321,20 @@ Before increasing concurrency above one:
   subagents as concurrent requests, not automatically as different users or
   slots.
 
-### TODO: personal live inference console UI
+### Personal live inference console
 
 The process-local, principal-scoped lifecycle source, authenticated SSE route,
-and single privacy-safe gateway event contract are implemented. Here,
+single privacy-safe gateway event contract, and authenticated UI are
+implemented. Here,
 **principal-scoped** means that the account ID is used as a private delivery
 address so each signed-in user can receive only events for requests
-authenticated by their own personal API keys. Add a terminal-inspired,
-read-only activity panel without exposing a shell, raw llama.cpp logs, or
-process stdout:
+authenticated by their own personal API keys. The terminal-inspired,
+read-only activity panel does not expose a shell, raw llama.cpp logs, or process
+stdout:
 
-- Consume the existing `/api/live-console/events` stream only from the
-  authenticated application UI. Keep the route's server-derived principal and
-  64-event pending bound; do not add client-selected ownership or replay.
+- The authenticated application UI consumes `/api/live-console/events`. Keep
+  the route's server-derived principal and 64-event pending bound; do not add
+  client-selected ownership or replay.
 - Keep the principal ID out of event payloads and logs. The request ID may be
   shown because the viewer owns the matching authenticated request.
 - Do not emit personal-console events for rejected or configuration-failed
@@ -352,13 +360,13 @@ process stdout:
   internal-only fields to the shared contract.
 - Keep the browser transport independent of stdout. Per-request inference
   metadata is intentionally absent from production stdout.
-- Retain at most the latest 200 rendered lines per browser tab in React memory.
-  Clear them on refresh and do not use local or session storage. Anonymous demo
-  tokens currently have no matching signed-in account stream and require a
-  separate product decision.
-- Test Alice/Bob isolation, principal and prohibited-content exclusion, empty
-  state after refresh/restart, session revocation, and unambiguous
-  real-versus-simulated labeling.
+- The UI retains at most the latest 200 rendered lines per browser tab in React
+  memory. Clear them on refresh and do not use local or session storage.
+  Anonymous demo tokens currently have no matching signed-in account stream
+  and require a separate product decision.
+- Coverage verifies account isolation, principal and prohibited-content
+  exclusion, empty state after remount, session revocation, exact transport-gap
+  display, the 200-line bound, and unambiguous real-versus-simulated labeling.
 
 ### TODO: SSD-protected model loading
 
