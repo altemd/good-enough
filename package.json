@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
+    "dev:amd": "bash scripts/start-amd-dev.sh",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "account:reset-admin": "node scripts/reset-admin-password.mjs",

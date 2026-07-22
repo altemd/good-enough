@@ -29,7 +29,7 @@ The initial invariant is therefore:
 
 The AMD pilot delegates curated model routing and autoload to llama-server. The
 host operator owns the live preset catalog at `/mnt/bridge/models/config.ini`.
-The router starts with `--models-max 2` and autoload enabled. The limit controls
+The router starts with `--models-max 1` and autoload enabled. The limit controls
 resident children, not the number of curated model choices. Good Enough
 forwards the authenticated request body unchanged, so every valid personal or
 demo API key may request every model in that trusted catalog. There is no
@@ -43,8 +43,14 @@ application-owned model lifecycle.
 
 The browser demo discovers models through public `/v1/models`, so at least one
 curated model must already be loaded before the demo can select it. The pilot
-startup procedure primes both qualified Qwen presets. Autoload remains enabled
-for later requests, reloads, and any approved model that is not resident.
+startup procedure primes Qwen3.6 27B as the sole resident model. Autoload
+remains enabled for later requests, reloads, and any approved model that is not
+resident.
+
+The one-resident limit became the pilot default after a 2026-07-23 global OOM
+while a second llama child was being loaded. It prevents deliberate model
+co-residency, but it is not a memory fit guarantee: a single oversized model,
+context, or slot profile can still exhaust unified memory.
 
 The following phases are deferred until a separate product decision or pilot
 evidence reopens them:
@@ -127,12 +133,13 @@ content-free queue counts and wait timing, but not an unstable queue position.
    reports measured per-request slowdown ranges rather than reciprocal-speed
    promises.
 
-#### Several loaded models
+#### Model switching
 
-5. Two users select two already-loaded models. The same global active limit
-   applies across both child processes, so the second generation receives
-   `429` even though its model has an idle slot. Idle-model residency must be
-   qualified before it is described as performance-free on unified memory.
+5. A user selects a different curated model. With one resident child, the
+   router must evict the idle model before the replacement can remain loaded.
+   Repeatedly alternating model IDs therefore causes load latency and SSD
+   churn; the pilot does not describe switching as free or retain multiple
+   models to reduce it.
 ### Deferred application-owned lifecycle scenarios
 
 The remaining scenarios describe a possible future application control plane,

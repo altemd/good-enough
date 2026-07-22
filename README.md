@@ -32,16 +32,16 @@ llama-server \
 ```
 
 The AMD pilot uses llama-server router mode with a trusted host-owned preset
-file, at most two resident models through `--models-max 2`, and autoload
+file, one resident model through `--models-max 1`, and autoload
 enabled. Every valid personal or demo API key may request any model in that
 curated router catalog; Good Enough does not parse the request body to apply a
 different model policy per credential. The application does not expose
 llama-server's `/models`, `/models/load`, `/models/unload`, download, or deletion
 endpoints. At least one curated model must be loaded before the browser demo can
-discover it through `/v1/models`, so the operator primes both previously
-qualified Qwen models locally during startup verification. The current host
-catalog also contains Qwen3.5 122B-A10B, which is not covered by that earlier
-co-residency qualification.
+discover it through `/v1/models`, so the operator primes the Qwen3.6 27B model
+locally during startup verification. Other curated model requests replace the
+sole resident child. The current host catalog also contains Qwen3.5 122B-A10B,
+which is not covered by the earlier qualification.
 See the [AMD pilot host setup guide](docs/operations/amd-pilot-host-setup.md).
 
 Good Enough requires Node 24 or newer. Copy `.env.example` to `.env` and replace
