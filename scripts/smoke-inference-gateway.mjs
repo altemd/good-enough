@@ -46,7 +46,9 @@ const mockServer = createServer((request, response) => {
 
 	if (request.method === "GET" && request.url === "/v1/models") {
 		response.writeHead(200, { "content-type": "application/json" });
-		response.end('{"object":"list","data":[]}');
+		response.end(
+			'{"object":"list","data":[{"id":"smoke-model","object":"model"}]}',
+		);
 		return;
 	}
 
@@ -206,7 +208,7 @@ try {
 	assert.equal(databaseModelsResponse.status, 200);
 	assert.deepEqual(await databaseModelsResponse.json(), {
 		object: "list",
-		data: [],
+		data: [{ id: "smoke-model", object: "model" }],
 	});
 	const demoModelsResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/models`, {
@@ -216,7 +218,7 @@ try {
 	assert.equal(demoModelsResponse.status, 200);
 	assert.deepEqual(await demoModelsResponse.json(), {
 		object: "list",
-		data: [],
+		data: [{ id: "smoke-model", object: "model" }],
 	});
 	const databaseAnthropicResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/messages`, {
@@ -434,11 +436,25 @@ try {
 	assert.match(upstreamErrorBody, /Inference backend returned an error/);
 	assert.equal(upstreamErrorBody.includes(PRIVATE_UPSTREAM_ERROR), false);
 
+	const completedDemoChatResponse = recordResponse(
+		await fetch(`${applicationOrigin}/v1/chat/completions`, {
+			body: REQUEST_BODY,
+			headers: {
+				authorization: `Bearer ${DEMO_API_KEY}`,
+				"content-type": "application/json",
+			},
+			method: "POST",
+		}),
+	);
+	assert.equal(completedDemoChatResponse.status, 200);
+	assert.match(await completedDemoChatResponse.text(), /\[DONE\]/);
+
 	assert.deepEqual(mockState.generationPaths, [
 		"/v1/chat/completions",
 		"/v1/messages",
 		"/v1/chat/completions",
 		"/v1/messages",
+		"/v1/chat/completions",
 		"/v1/chat/completions",
 	]);
 

@@ -17,6 +17,8 @@ import type {
 	CurrentAccount,
 } from "#/features/accounts/account-contract";
 
+import { DemoChat } from "./demo-chat";
+
 interface DemoCredential {
 	apiKey: string;
 	createdAt: number;
@@ -234,6 +236,7 @@ export function PublicDemoPage({
 					) : null}
 				</aside>
 			</div>
+			{credential ? <DemoChat apiKey={credential.apiKey} /> : null}
 		</main>
 	);
 }
