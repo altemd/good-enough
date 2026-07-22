@@ -75,8 +75,12 @@ describe("account entry forms", () => {
 		);
 
 		expect(
-			screen.getByText(/Prompts, responses, reasoning, and tool arguments/u),
+			screen.getByText(/never persists prompts, responses, reasoning/u),
 		).toBeTruthy();
+		expect(
+			screen.getByText(/personal API keys that expire seven days/u),
+		).toBeTruthy();
+		expect(screen.getByText(/cannot be extended or converted/u)).toBeTruthy();
 		fireEvent.change(screen.getByLabelText("Username"), {
 			target: { value: "new-member" },
 		});

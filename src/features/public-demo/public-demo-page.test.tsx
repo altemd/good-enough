@@ -103,6 +103,20 @@ describe("public demo page", () => {
 				"Try one for an hour on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo) host.",
 			),
 		).toBeTruthy();
+		expect(
+			screen.getByRole("heading", { name: "Private by design" }),
+		).toBeTruthy();
+		expect(
+			screen.getByText(/never persists your prompts, responses, reasoning/u),
+		).toBeTruthy();
+		expect(
+			screen.getByText(/personal API keys that expire seven days/u),
+		).toBeTruthy();
+		expect(
+			screen.getByText(
+				/Demo keys expire after one hour and cannot be extended/u,
+			),
+		).toBeTruthy();
 		expect(screen.getByText("example preview · synthetic events")).toBeTruthy();
 
 		fireEvent.click(
@@ -113,6 +127,7 @@ describe("public demo page", () => {
 		expect(issueDemoToken).toHaveBeenCalledOnce();
 		expect(storageWrite).not.toHaveBeenCalled();
 		await screen.findByRole("heading", { name: "Live demo chat" });
+		expect(screen.getByText("No inference content persisted")).toBeTruthy();
 		expect(discoverOpenAiModelIds).toHaveBeenCalledWith(
 			"ge_demo_selector_private-secret",
 			expect.objectContaining({ signal: expect.any(AbortSignal) }),

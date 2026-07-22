@@ -40,11 +40,21 @@ export function RegistrationForm({ state }: { state: AccountEntryState }) {
 
 	return (
 		<>
-			<p className="text-sm leading-6 text-muted-foreground">
-				Prompts, responses, reasoning, and tool arguments are never persisted.
-				Account, session, and API-key records are stored so you can sign in and
-				manage access.
-			</p>
+			<div className="rounded-xl border bg-muted/40 p-4 text-sm leading-6">
+				<p className="font-medium">
+					Create separate personal API keys that expire seven days after
+					creation.
+				</p>
+				<p className="mt-2 text-muted-foreground">
+					Demo keys expire after one hour and cannot be extended or converted.
+					Personal keys also unlock private, live-only request telemetry.
+				</p>
+				<p className="mt-2 text-muted-foreground">
+					Good Enough never persists prompts, responses, reasoning, or tool
+					arguments. Account, session, and API-key lifecycle records are stored
+					so you can sign in and manage access.
+				</p>
+			</div>
 			<form
 				className="mt-5 grid gap-4"
 				onSubmit={async (event) => {

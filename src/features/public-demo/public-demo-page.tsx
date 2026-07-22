@@ -6,6 +6,7 @@ import {
 	LockKeyhole,
 	Play,
 	Server,
+	ShieldCheck,
 	Timer,
 } from "lucide-react";
 import { useState } from "react";
@@ -107,10 +108,35 @@ export function PublicDemoPage({
 								? "Demo running"
 								: "Start one-hour demo"}
 					</Button>
-					<p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
-						No account required. Prompts, responses, reasoning, and tool
-						arguments are not persisted.
-					</p>
+					<section
+						className="mt-7 max-w-lg rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-emerald-950 shadow-xs"
+						aria-labelledby="privacy-title"
+					>
+						<div className="flex items-center gap-2">
+							<ShieldCheck className="size-5 text-emerald-700" />
+							<h2 id="privacy-title" className="font-semibold">
+								Private by design
+							</h2>
+						</div>
+						<p className="mt-3 text-sm leading-6">
+							Good Enough never persists your prompts, responses, reasoning, or
+							tool arguments.
+						</p>
+						<ul className="mt-3 grid gap-2 text-xs leading-5 text-emerald-900/80">
+							<li>
+								The demo key and conversation stay in this browser tab; refresh
+								or dismissal clears them.
+							</li>
+							<li>
+								Request telemetry is content-free, live-only, and never
+								replayed.
+							</li>
+							<li>
+								Accounts store only account, session, and API-key lifecycle
+								records.
+							</li>
+						</ul>
+					</section>
 					{error ? (
 						<p
 							className="mt-5 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -203,9 +229,12 @@ function RequestTelemetryPitch({
 						See what each request is doing.
 					</h2>
 					<p className="mt-4 max-w-xl leading-7 text-muted-foreground">
-						Sign up to watch TTFT, duration, token counts, prompt and generation
-						speed, cache reuse, and capacity state for your own API requests.
-						The feed is live-only and starts empty after refresh.
+						Create an account to generate separate personal API keys that expire
+						seven days after creation and watch TTFT, duration, token counts,
+						prompt and generation speed, cache reuse, and capacity state for
+						your own requests. Demo keys expire after one hour and cannot be
+						extended or converted. The content-free feed is live-only and starts
+						empty after refresh.
 					</p>
 					<div className="mt-6">
 						{account ? (

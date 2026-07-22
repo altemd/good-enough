@@ -1,4 +1,4 @@
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, ShieldCheck } from "lucide-react";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "#/components/ui/button";
@@ -138,6 +138,10 @@ export function DemoChat({
 						<h2 className="font-semibold">Live demo chat</h2>
 						<span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
 							Ephemeral
+						</span>
+						<span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+							<ShieldCheck className="size-3" />
+							No inference content persisted
 						</span>
 					</div>
 					<p className="mt-1 text-xs text-muted-foreground">
