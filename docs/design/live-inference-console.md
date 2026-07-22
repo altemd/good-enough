@@ -1,4 +1,4 @@
-# Personal live inference console event foundation
+# Personal live inference console transport foundation
 
 ## Current checkpoint
 
@@ -8,11 +8,12 @@ to listeners for the account that owns the accepted personal API key. This is
 to choose the recipient. It stays in process memory and is never copied into an
 event, response, or log.
 
-There is no HTTP or browser transport yet. When that account has no subscriber,
-the source immediately discards the event. It does not persist, replay, or log
-events. Production stdout also receives no per-request inference metadata, so
-an ephemeral UI feed does not accidentally become retained history through a
-log collector.
+The private `GET /api/live-console/events` TanStack Start route exposes the
+source as server-sent events (SSE) to unrestricted signed-in browser sessions.
+When an account has no subscriber, the source immediately discards the event.
+It does not persist, replay, or log events. Production stdout also receives no
+per-request inference metadata, so an ephemeral UI feed does not accidentally
+become retained history through a log collector.
 
 ## Runtime ownership
 
@@ -34,6 +35,13 @@ principal. Publication is synchronous and nonthrowing. A failing browser tab is
 isolated from inference and from the same account's other tabs, and unsubscribe
 is idempotent.
 
+`personal-event-stream.server.ts` owns browser-session authorization, SSE
+serialization, the bounded per-connection queue, session revalidation, and
+disconnect cleanup. `src/routes/api/live-console/events.ts` is the thin
+TanStack file-route binding required by the router. The route sits outside the
+authenticated layout because navigation guards provide user experience, while
+the stream handler independently enforces the security boundary.
+
 ## Request flow
 
 1. The gateway receives a request and creates its public `requestId`.
@@ -47,6 +55,21 @@ is idempotent.
 
 Missing, malformed, unknown, expired, or configuration-failed authentication
 does not have a trusted owner, so it produces no personal-console event.
+
+For a browser subscriber:
+
+1. The route reads the configured HttpOnly session cookie from the request.
+2. The account session store establishes an unrestricted active session.
+3. The handler derives `principalId` from that trusted session and subscribes
+   only to its event source; query strings and headers cannot select ownership.
+4. The handler sends future events as SSE with `Cache-Control: no-store` and no
+   replay identifier.
+5. At most 64 pending lifecycle events are retained for that connection. A
+   `console.gap` transport event reports exact loss if a slow reader overflows
+   the bound.
+6. The session is revalidated at least every 15 seconds and at its expiry
+   boundary. Revocation, restriction, account disablement, expiry, persistence
+   failure, request abort, or reader cancellation closes and unsubscribes it.
 
 ## Lifecycle order
 
@@ -91,19 +114,13 @@ prohibited data out of the complete event.
 
 ## Next checkpoint
 
-Add a private authenticated TanStack Start SSE route at
-`/api/live-console/events`. The route must derive the principal from the
-browser's authenticated server session; it must never accept a principal ID
-from a URL, query, header, or browser message. It should subscribe only to that
-principal's source, use `Cache-Control: no-store`, keep a bounded
-per-subscriber queue, report dropped live events without replaying them, and
-unsubscribe on disconnect.
-
-The route also needs an explicit session-lifetime rule: close the stream or
-revalidate authorization when the browser session expires, is revoked, or is
-restricted. It must not create persistence, a history endpoint, browser local
-storage, or stdout-based transport. A browser tab should retain at most its
-latest 200 lines.
+Add the authenticated personal console UI. It should consume the existing SSE
+route, render the typed lifecycle events as a privacy-filtered,
+terminal-inspired panel, show a clear empty state on initial load, and retain
+at most the latest 200 rendered lines in React memory. Refresh must begin empty,
+and the UI must not use local storage, session storage, a history endpoint, or
+stdout-based transport. It should surface `console.gap` as an explicit
+lost-live-events line instead of pretending the visible sequence is complete.
 
 Anonymous demo tokens currently authenticate as a separate synthetic
 principal, not as a signed-in account. They therefore have no personal browser
@@ -111,8 +128,8 @@ console subscriber. A demo-specific view requires a separate product and
 security decision; do not route demo activity into a signed-in account by
 guessing ownership.
 
-Because the source is process-local, the future SSE route and inference request
-must reach the same Node process. Multi-process deployment requires an explicit
+Because the source is process-local, the SSE route and inference request must
+reach the same Node process. Multi-process deployment requires an explicit
 ephemeral cross-process transport before this behavior can be claimed there.
 Global hardware telemetry and all-user operational activity are a separate
 administrator concern, not part of the personal request console.

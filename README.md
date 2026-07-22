@@ -40,9 +40,18 @@ owning account. The account ID is used only in memory to choose the recipient;
 it is never included in an event or log. Events reuse the gateway request ID so
 the owner can match console activity to an HTTP response. The source keeps no
 history and immediately discards events when that account has no subscriber.
-It has no browser transport yet, and the application does not write per-request
-inference metadata to stdout. Numeric metrics come only from explicitly
-allowlisted protocol fields.
+The private `GET /api/live-console/events` TanStack Start route streams those
+events to an unrestricted signed-in browser session using server-sent events
+(SSE). It never accepts an account ID from the browser. The application does
+not write per-request inference metadata to stdout, and numeric metrics come
+only from explicitly allowlisted protocol fields.
+
+The SSE connection starts empty, uses `Cache-Control: no-store`, and keeps at
+most 64 pending lifecycle events per browser connection. If a slow reader
+overflows that bound, `console.gap` reports the exact number of dropped events
+without replaying them. The server revalidates the captured browser session at
+least every 15 seconds and closes the stream when the session expires, is
+revoked, becomes restricted, or its account is disabled.
 
 ### Accounts and personal API keys
 
@@ -305,19 +314,19 @@ Before increasing concurrency above one:
   subagents as concurrent requests, not automatically as different users or
   slots.
 
-### TODO: authenticated live inference console transport and UI
+### TODO: personal live inference console UI
 
-The process-local, principal-scoped lifecycle source and single privacy-safe
-gateway event contract are implemented. Here, **principal-scoped** means that
-the account ID is used as a private delivery address so each signed-in user can
-receive only events for requests authenticated by their own personal API keys.
-Add an authenticated, terminal-inspired, read-only activity panel without
-exposing a shell, raw llama.cpp logs, or process stdout:
+The process-local, principal-scoped lifecycle source, authenticated SSE route,
+and single privacy-safe gateway event contract are implemented. Here,
+**principal-scoped** means that the account ID is used as a private delivery
+address so each signed-in user can receive only events for requests
+authenticated by their own personal API keys. Add a terminal-inspired,
+read-only activity panel without exposing a shell, raw llama.cpp logs, or
+process stdout:
 
-- Expose the existing process-local source through a private authenticated
-  TanStack Start SSE route with `Cache-Control: no-store`. Derive the principal
-  from the trusted browser session on the server; never accept a principal ID
-  supplied by the browser. Subscribe only to that principal's events.
+- Consume the existing `/api/live-console/events` stream only from the
+  authenticated application UI. Keep the route's server-derived principal and
+  64-event pending bound; do not add client-selected ownership or replay.
 - Keep the principal ID out of event payloads and logs. The request ID may be
   shown because the viewer owns the matching authenticated request.
 - Do not emit personal-console events for rejected or configuration-failed
@@ -343,9 +352,10 @@ exposing a shell, raw llama.cpp logs, or process stdout:
   internal-only fields to the shared contract.
 - Keep the browser transport independent of stdout. Per-request inference
   metadata is intentionally absent from production stdout.
-- Close or revalidate the stream when the browser session expires, is revoked,
-  or becomes restricted. Anonymous demo tokens currently have no matching
-  signed-in account stream and require a separate product decision.
+- Retain at most the latest 200 rendered lines per browser tab in React memory.
+  Clear them on refresh and do not use local or session storage. Anonymous demo
+  tokens currently have no matching signed-in account stream and require a
+  separate product decision.
 - Test Alice/Bob isolation, principal and prohibited-content exclusion, empty
   state after refresh/restart, session revocation, and unambiguous
   real-versus-simulated labeling.
@@ -426,7 +436,8 @@ The built-server regression harness compiles the production application, starts
 an isolated loopback fake llama-server, migrates a temporary SQLite database,
 and checks personal-key authentication, key/account rejection, routing, shared
 capacity, stream cancellation, release paths, request IDs, absence of
-per-request stdout metadata, and log privacy:
+per-request stdout metadata, authenticated personal SSE delivery, and log
+privacy:
 
 ```bash
 pnpm test:runtime
