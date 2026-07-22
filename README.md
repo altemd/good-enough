@@ -32,13 +32,16 @@ llama-server \
 ```
 
 The AMD pilot uses llama-server router mode with a trusted host-owned preset
-file, `--models-max 2`, and autoload enabled. Every valid personal or demo API
-key may request any model in that curated router catalog; Good Enough does not
-parse the request body to apply a different model policy per credential. The
-application does not expose llama-server's `/models`, `/models/load`,
-`/models/unload`, download, or deletion endpoints. At least one curated model
-must be loaded before the browser demo can discover it through `/v1/models`, so
-the operator primes both approved models locally during startup verification.
+file, at most two resident models through `--models-max 2`, and autoload
+enabled. Every valid personal or demo API key may request any model in that
+curated router catalog; Good Enough does not parse the request body to apply a
+different model policy per credential. The application does not expose
+llama-server's `/models`, `/models/load`, `/models/unload`, download, or deletion
+endpoints. At least one curated model must be loaded before the browser demo can
+discover it through `/v1/models`, so the operator primes both previously
+qualified Qwen models locally during startup verification. The current host
+catalog also contains Qwen3.5 122B-A10B, which is not covered by that earlier
+co-residency qualification.
 See the [AMD pilot host setup guide](docs/operations/amd-pilot-host-setup.md).
 
 Good Enough requires Node 24 or newer. Copy `.env.example` to `.env` and replace
@@ -89,11 +92,38 @@ the sole administrator requires host access through
 the temporary password once, so terminal scrollback and captured command output
 must be treated as credential-bearing operator data.
 
+The public header exposes sign-in and registration as accessible anchored
+popovers while `/login` and `/register` remain direct-link fallbacks using the
+same forms. Successful registration creates the member and its initial browser
+session atomically, writes the session only as an HttpOnly cookie, and enters
+the personal API-key onboarding without requiring a second login.
+
 Users create unnamed personal API keys in the dashboard. Each key is displayed
 once, stored only as a digest plus non-secret prefix, and expires exactly seven
 days after creation. Expiry does not slide with use. Lost, expired, or revoked
 keys cannot be recovered or renewed. The dashboard shows only prefix, creation
 date, expiry date, and active/expired/revoked state.
+
+Immediately after creating a personal key or one-hour demo key, the shared
+display-once panel discovers the current model IDs through the authenticated
+`/v1/models` endpoint and generates a complete
+[OpenCode](https://opencode.ai/docs/providers/) provider configuration. The
+copyable JSON uses the current application origin, the
+`@ai-sdk/openai-compatible` adapter, and an inline API key; it does not require
+an environment variable. The key and generated configuration exist only in
+React memory and disappear together when the panel is dismissed or the page is
+unloaded. Because the JSON contains the plaintext key, do not commit, share, or
+publish it. Existing OpenCode users should merge the generated
+`provider.good-enough` entry instead of replacing unrelated configuration. The
+demo chat reuses the model IDs discovered by this panel rather than issuing a
+second discovery request. The panel recommends the global OpenCode file at
+`~/.config/opencode/opencode.json` and also identifies project-root
+`opencode.json` as an alternative that must be excluded from version control
+while it contains the generated key.
+
+The onboarding copy distinguishes stored account/key lifecycle records from
+inference content and explains that personal request timing is delivered only
+while the live console is connected, with no replay after refresh.
 
 Drizzle ORM owns the SQLite schema and committed migrations through Node's
 built-in `node:sqlite` driver. The database defaults to
@@ -174,7 +204,10 @@ bypass, and authentication never records use or extends expiry. A copied token
 works until its absolute expiry, so the browser must treat the one-time response
 as a secret.
 
-The public landing page exposes a prominent `Start one-hour demo` action. It
+The public landing page asks whether local models are good enough, identifies
+the inference host as a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo), labels the
+service as exposing OpenAI- and Anthropic-compatible APIs, and places a
+prominent `Start one-hour demo` action beside the demo panel. It
 issues a credential only after an explicit user click, so crawlers, link
 previews, and speculative browser loads do not consume demo credentials. The
 complete value appears only in the creation result with copy and dismiss
@@ -182,9 +215,12 @@ actions. It remains in React page memory rather than a URL, cookie, local
 storage, or session storage; refresh, navigation, or dismissal forgets it.
 
 After issuance, the page uses the in-memory token to discover available models
-and exposes a focused OpenAI-compatible streaming chat. The browser sends the
-token only in the same-origin `Authorization` header. It incrementally renders
-text and optional reasoning, supports cancellation, and maps authentication,
+and replaces the right-side invitation with a focused OpenAI-compatible
+streaming chat, without requiring the reader to scroll below the hero. The
+browser sends the token only in the same-origin `Authorization` header. It
+incrementally renders safe Markdown in assistant text and optional reasoning,
+keeps reasoning open while it streams and closes it on completion, supports
+cancellation, and maps authentication,
 capacity, connection, and protocol failures to fixed messages without showing
 upstream error bodies. Tool-call arguments are not rendered by this focused
 chat. Small stream deltas are coalesced until the browser's next paint before
@@ -205,6 +241,12 @@ URLs, local storage, session storage, or an application persistence endpoint
 for the token or conversation. The service's normal content-free operational
 live-event filtering still applies; prompts and responses remain absent from
 application stdout.
+
+A lower landing-page section previews the existing personal request telemetry
+surface: admission, TTFT, duration, token counts, throughput, cache reuse, and
+capacity state. Preview lines are explicitly synthetic examples; signed-in
+users see only their own live request events, and neither preview nor live feed
+contains inference content or retained history.
 
 Without email, CAPTCHA, a durable device identity, or retained IP addresses,
 the service cannot honestly enforce “one demo per person”; another explicit

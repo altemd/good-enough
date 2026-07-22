@@ -28,11 +28,12 @@ The initial invariant is therefore:
 ## MVP router ownership and deferrals
 
 The AMD pilot delegates curated model routing and autoload to llama-server. The
-host operator owns the preset catalog, currently expected at
-`/mnt/bridge/models/config.ini`, and starts the router with `--models-max 2`
-and autoload enabled. Good Enough forwards the authenticated request body
-unchanged, so every valid personal or demo API key may request every model in
-that trusted catalog. There is no per-credential model allowlist.
+host operator owns the live preset catalog at `/mnt/bridge/models/config.ini`.
+The router starts with `--models-max 2` and autoload enabled. The limit controls
+resident children, not the number of curated model choices. Good Enough
+forwards the authenticated request body unchanged, so every valid personal or
+demo API key may request every model in that trusted catalog. There is no
+per-credential model allowlist.
 
 Good Enough does not expose llama-server's native `/models`, `/models/load`,
 `/models/unload`, download, deletion, health, metric, slot, or web UI endpoints.
@@ -57,7 +58,10 @@ evidence reopens them:
   one.
 
 Curated process and sampling defaults remain trusted llama-server preset-file
-configuration. Good Enough does not read or rewrite that file.
+configuration. Good Enough does not read or rewrite that file. Generic
+speculative decoding may remain a trusted router flag, but MTP is
+model-specific preset configuration; a global `--spec-type draft-mtp` must not
+be treated as an automatic capability probe for a mixed catalog.
 
 The clone, router startup, local model priming, and first end-to-end validation
 procedure is recorded in
