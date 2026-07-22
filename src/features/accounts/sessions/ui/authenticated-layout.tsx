@@ -27,7 +27,7 @@ export function AuthenticatedLayout({ account }: { account: CurrentAccount }) {
 						className="underline"
 						onClick={async () => {
 							await logout();
-							await router.navigate({ to: "/login" });
+							await router.navigate({ to: "/", replace: true });
 						}}
 					>
 						Sign out
