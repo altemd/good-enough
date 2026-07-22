@@ -36,6 +36,7 @@ export interface InferenceRequestMetadata extends StreamMetadata {
 	concurrencyLimit: number | null;
 	activeGenerationsAtAdmission: number | null;
 	queuedGenerationsAtAdmission: number | null;
+	queueWaitMs: number | null;
 	upstreamHeadersMs: number | null;
 	durationMs: number;
 }
@@ -46,6 +47,7 @@ export interface GatewayRequestLifecycle {
 	readonly requestId: string;
 	elapsed(): number;
 	recordFirstOutput(ttftMs: number): void;
+	recordQueued(snapshot: AdmissionSnapshot): void;
 	setAuthenticationStatus(status: GatewayAuthenticationStatus): void;
 	setAdmission(
 		status: GatewayAdmissionStatus,
@@ -77,6 +79,8 @@ export function createGatewayRequestLifecycle(options: {
 	const emptyObserver = createStreamMetadataObserver("none");
 	let upstreamStatus: number | null = null;
 	let upstreamHeadersMs: number | null = null;
+	let queueStartedMs: number | null = null;
+	let queueWaitMs: number | null = null;
 	let authenticationStatus: GatewayAuthenticationStatus = "rejected";
 	let admissionStatus: GatewayAdmissionStatus = "not_applicable";
 	let admissionSnapshot: AdmissionSnapshot | null = null;
@@ -116,10 +120,25 @@ export function createGatewayRequestLifecycle(options: {
 				ttftMs,
 			}));
 		},
+		recordQueued(snapshot) {
+			if (queueStartedMs !== null || finalized) {
+				return;
+			}
+			queueStartedMs = elapsed();
+			admissionSnapshot = snapshot;
+			observe(() => ({
+				...eventBase(),
+				type: "inference.queued",
+				capacity: snapshot,
+			}));
+		},
 		setAuthenticationStatus(status) {
 			authenticationStatus = status;
 		},
 		setAdmission(status, snapshot, lease) {
+			if (queueStartedMs !== null && queueWaitMs === null) {
+				queueWaitMs = Math.max(0, elapsed() - queueStartedMs);
+			}
 			admissionStatus = status;
 			admissionSnapshot = snapshot;
 			generationLease = lease ?? null;
@@ -170,6 +189,7 @@ export function createGatewayRequestLifecycle(options: {
 					admissionSnapshot?.activeGenerations ?? null,
 				queuedGenerationsAtAdmission:
 					admissionSnapshot?.queuedGenerations ?? null,
+				queueWaitMs,
 				upstreamHeadersMs,
 				durationMs: elapsed(),
 				...streamMetadata,
@@ -183,6 +203,7 @@ export function createGatewayRequestLifecycle(options: {
 				responseStatus,
 				upstreamStatus,
 				upstreamHeadersMs,
+				queueWaitMs,
 				durationMs: metadata.durationMs,
 				capacity: readCurrentCapacity(
 					options.readCapacitySnapshot,

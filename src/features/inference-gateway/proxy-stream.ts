@@ -47,6 +47,7 @@ export type GatewayAuthenticator = (
 export interface GatewayDependencies {
 	authenticate: GatewayAuthenticator;
 	admission: GenerationAdmissionController;
+	admissionConfigurationError?: boolean;
 	llamaServerUrl?: string;
 	fetch?: typeof globalThis.fetch;
 	record?: MetadataRecorder;
@@ -64,13 +65,15 @@ export async function handleGatewayRequest(
 ): Promise<Response> {
 	const now = dependencies.now ?? performance.now.bind(performance);
 	const requestKind = resolveRequestKind(request, endpoint);
+	let authenticatedPrincipalId: string | undefined;
 	const lifecycle = createGatewayRequestLifecycle({
 		endpoint: endpoint?.path ?? "/v1/*",
 		requestKind,
 		now,
 		wallClock: dependencies.wallClock ?? (() => new Date()),
 		createRequestId: dependencies.createRequestId,
-		readCapacitySnapshot: () => dependencies.admission.snapshot(),
+		readCapacitySnapshot: () =>
+			dependencies.admission.snapshot(authenticatedPrincipalId),
 		record: dependencies.record,
 	});
 	const requestId = lifecycle.requestId;
@@ -120,6 +123,7 @@ export async function handleGatewayRequest(
 			principalId: authentication.principalId,
 		}),
 	);
+	authenticatedPrincipalId = authentication.principalId;
 
 	const clientSignal = dependencies.clientSignal ?? request.signal;
 	if (clientSignal.aborted) {
@@ -178,20 +182,69 @@ export async function handleGatewayRequest(
 	}
 
 	if (endpoint.kind === "generation") {
-		const decision = dependencies.admission.tryAcquire();
-		if (!decision.admitted) {
+		if (dependencies.admissionConfigurationError) {
+			lifecycle.finalize(
+				{
+					outcome: "configuration_error",
+					stage: "admission_configuration",
+				},
+				500,
+			);
+			return createProtocolErrorResponse({
+				protocol: apiProtocol,
+				status: 500,
+				code: "configuration_error",
+				message: "Inference admission configuration is invalid.",
+				requestId,
+			});
+		}
+
+		const attempt = dependencies.admission.acquire({
+			principalId: authentication.principalId,
+			signal: clientSignal,
+		});
+		const decision =
+			attempt.status === "queued"
+				? await waitForQueuedAdmission(attempt, lifecycle)
+				: attempt;
+
+		if (decision.status === "cancelled") {
+			lifecycle.setAdmission("rejected", decision.snapshot);
+			lifecycle.finalize({ outcome: "cancelled" }, 499);
+			return createProtocolErrorResponse({
+				protocol: apiProtocol,
+				status: 499,
+				statusText: "Client Closed Request",
+				code: "client_cancelled",
+				message: "Request was cancelled before a response was available.",
+				requestId,
+			});
+		}
+
+		if (decision.status === "timed_out") {
+			lifecycle.setAdmission("rejected", decision.snapshot);
+			lifecycle.finalize({ outcome: "rejected", reason: "queue_timeout" }, 429);
+			return createProtocolErrorResponse({
+				protocol: apiProtocol,
+				status: 429,
+				code: "queue_timeout",
+				message:
+					"Inference capacity remained unavailable. Retry the request later.",
+				requestId,
+			});
+		}
+
+		if (decision.status === "rejected") {
 			lifecycle.setAdmission("rejected", decision.snapshot);
 			lifecycle.finalize(
 				{ outcome: "rejected", reason: "capacity_exceeded" },
 				429,
 			);
-
 			return createProtocolErrorResponse({
 				protocol: apiProtocol,
 				status: 429,
 				code: "capacity_exceeded",
-				message:
-					"Inference capacity is currently in use. Retry the request later.",
+				message: "Inference queue capacity is full. Retry the request later.",
 				requestId,
 			});
 		}
@@ -398,6 +451,17 @@ export async function handleGatewayRequest(
 		statusText: upstreamResponse.statusText,
 		headers: responseHeaders,
 	});
+}
+
+async function waitForQueuedAdmission(
+	attempt: Extract<
+		ReturnType<GenerationAdmissionController["acquire"]>,
+		{ readonly status: "queued" }
+	>,
+	lifecycle: ReturnType<typeof createGatewayRequestLifecycle>,
+) {
+	lifecycle.recordQueued(attempt.snapshot);
+	return attempt.wait;
 }
 
 function resolveRequestKind(

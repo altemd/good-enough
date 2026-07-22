@@ -10,7 +10,8 @@ export type GatewayRejectionReason =
 	| "authentication_failed"
 	| "capacity_exceeded"
 	| "method_not_allowed"
-	| "not_found";
+	| "not_found"
+	| "queue_timeout";
 
 export type GatewayAdmissionStatus = "admitted" | "not_applicable" | "rejected";
 
@@ -20,6 +21,7 @@ export type GatewayAuthenticationStatus =
 	| "rejected";
 
 export type GatewayFailureStage =
+	| "admission_configuration"
 	| "authentication_configuration"
 	| "backend_configuration";
 
@@ -56,6 +58,10 @@ export type GatewayLifecycleEvent =
 			readonly type: "inference.request_started";
 	  })
 	| (GatewayLifecycleEventBase & {
+			readonly type: "inference.queued";
+			readonly capacity: AdmissionSnapshot;
+	  })
+	| (GatewayLifecycleEventBase & {
 			readonly type: "inference.admission_decided";
 			readonly decision: Exclude<GatewayAdmissionStatus, "not_applicable">;
 			readonly capacity: AdmissionSnapshot;
@@ -71,6 +77,7 @@ export type GatewayLifecycleEvent =
 			readonly responseStatus: number;
 			readonly upstreamStatus: number | null;
 			readonly upstreamHeadersMs: number | null;
+			readonly queueWaitMs: number | null;
 			readonly durationMs: number;
 			readonly capacity: AdmissionSnapshot | null;
 			readonly metrics: StreamMetadata;

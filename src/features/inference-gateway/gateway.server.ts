@@ -1,12 +1,15 @@
 import "@tanstack/react-start/server-only";
 
 import { liveInferenceEventSource } from "#/features/live-inference-console/live-event-source.server";
-import { createGenerationAdmissionController } from "./admission";
+import {
+	createGenerationAdmissionController,
+	readGenerationAdmissionConfig,
+} from "./admission";
 import { authenticateGatewayApiKey } from "./auth.server";
 import type { GatewayLifecycleObserverFactory } from "./lifecycle-events";
 import { type GatewayEndpoint, handleGatewayRequest } from "./proxy-stream";
 
-const generationAdmission = createGenerationAdmissionController();
+const admissionComposition = createAdmissionComposition();
 const createLifecycleObserver: GatewayLifecycleObserverFactory =
 	({ principalId }) =>
 	(event) =>
@@ -61,10 +64,27 @@ function handleConfiguredGatewayRequest(
 	endpoint: GatewayEndpoint | null,
 ): Promise<Response> {
 	return handleGatewayRequest(request, endpoint, {
-		admission: generationAdmission,
+		admission: admissionComposition.controller,
+		admissionConfigurationError: admissionComposition.configurationError,
 		authenticate: (candidateRequest, apiProtocol) =>
 			authenticateGatewayApiKey(candidateRequest, apiProtocol),
 		llamaServerUrl: process.env.LLAMA_SERVER_URL,
 		createLifecycleObserver,
 	});
+}
+
+function createAdmissionComposition() {
+	try {
+		return {
+			controller: createGenerationAdmissionController(
+				readGenerationAdmissionConfig(process.env),
+			),
+			configurationError: false,
+		};
+	} catch {
+		return {
+			controller: createGenerationAdmissionController(),
+			configurationError: true,
+		};
+	}
 }

@@ -21,6 +21,7 @@ export type ProtocolErrorCode =
 	| "gateway_connection_error"
 	| "method_not_allowed"
 	| "not_found"
+	| "queue_timeout"
 	| "upstream_error"
 	| "upstream_stream_error";
 

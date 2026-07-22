@@ -2,6 +2,7 @@ import type { GatewayLifecycleEvent } from "#/features/inference-gateway/lifecyc
 
 export const PERSONAL_CONSOLE_EVENT_NAMES = [
 	"inference.request_started",
+	"inference.queued",
 	"inference.admission_decided",
 	"inference.first_output",
 	"inference.terminal",
@@ -49,6 +50,8 @@ export function projectPersonalConsoleEvent(
 				[formatRequestKind(value.requestKind)],
 				"activity",
 			);
+		case "inference.queued":
+			return projectQueued(value);
 		case "inference.admission_decided":
 			return projectAdmission(value);
 		case "inference.first_output":
@@ -58,6 +61,23 @@ export function projectPersonalConsoleEvent(
 		default:
 			return null;
 	}
+}
+
+function projectQueued(value: LifecycleObject): PersonalConsoleLine | null {
+	if (!isCapacity(value.capacity)) {
+		return null;
+	}
+	const capacity = value.capacity;
+	return lifecycleLine(
+		value,
+		"Queued for capacity",
+		[
+			`${capacity.activeGenerations}/${capacity.concurrencyLimit} active`,
+			`${capacity.queuedGenerations}/${capacity.queueLimit} queued globally`,
+			`${capacity.principalQueuedGenerations}/${capacity.principalQueueLimit} queued by you`,
+		],
+		"warning",
+	);
 }
 
 function projectGap(value: JsonObject): PersonalConsoleLine | null {
@@ -115,6 +135,7 @@ function projectTerminal(value: LifecycleObject): PersonalConsoleLine | null {
 		!isHttpStatus(value.responseStatus) ||
 		!isNullableHttpStatus(value.upstreamStatus) ||
 		!isNullableNonNegativeNumber(value.upstreamHeadersMs) ||
+		!isNullableNonNegativeNumber(value.queueWaitMs) ||
 		!isNonNegativeNumber(value.durationMs) ||
 		!isCapacityOrNull(value.capacity) ||
 		!isMetadata(value.metrics)
@@ -132,6 +153,9 @@ function projectTerminal(value: LifecycleObject): PersonalConsoleLine | null {
 			? null
 			: `upstream HTTP ${event.upstreamStatus}`,
 		`duration ${formatDuration(event.durationMs)}`,
+		event.queueWaitMs === null
+			? null
+			: `queue wait ${formatDuration(event.queueWaitMs)}`,
 		event.metrics.ttftMs === null
 			? null
 			: `TTFT ${formatDuration(event.metrics.ttftMs)}`,
@@ -227,12 +251,18 @@ function isCapacity(value: unknown): value is {
 	readonly activeGenerations: number;
 	readonly queuedGenerations: number;
 	readonly concurrencyLimit: number;
+	readonly queueLimit: number;
+	readonly principalQueuedGenerations: number;
+	readonly principalQueueLimit: number;
 } {
 	return (
 		isObject(value) &&
 		isNonNegativeInteger(value.activeGenerations) &&
 		isNonNegativeInteger(value.queuedGenerations) &&
-		isPositiveInteger(value.concurrencyLimit)
+		isPositiveInteger(value.concurrencyLimit) &&
+		isPositiveInteger(value.queueLimit) &&
+		isNonNegativeInteger(value.principalQueuedGenerations) &&
+		isPositiveInteger(value.principalQueueLimit)
 	);
 }
 

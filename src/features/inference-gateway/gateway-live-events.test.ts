@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createGenerationAdmissionController } from "./admission";
 import {
@@ -159,10 +159,25 @@ describe("personal live inference events", () => {
 	});
 
 	it("publishes capacity rejection after the admission decision", async () => {
-		const admission = createGenerationAdmissionController();
-		const active = admission.tryAcquire();
-		if (!active.admitted) {
+		const admission = createGenerationAdmissionController({
+			maxQueuedGenerations: 1,
+			maxQueuedGenerationsPerPrincipal: 1,
+			queueTimeoutMs: 1_000,
+		});
+		const active = admission.acquire({
+			principalId: "active-account",
+			signal: new AbortController().signal,
+		});
+		if (active.status !== "admitted") {
 			throw new Error("Expected the test lease to be admitted");
+		}
+		const queuedCancellation = new AbortController();
+		const queued = admission.acquire({
+			principalId: "test-account",
+			signal: queuedCancellation.signal,
+		});
+		if (queued.status !== "queued") {
+			throw new Error("Expected the test queue to be occupied");
 		}
 		const recorder = createEventRecorder();
 		const response = await handleGatewayRequest(
@@ -175,6 +190,15 @@ describe("personal live inference events", () => {
 		);
 
 		expect(response.status).toBe(429);
+		const requestId = response.headers.get("request-id");
+		expect(await response.json()).toEqual({
+			type: "error",
+			error: {
+				type: "rate_limit_error",
+				message: "Inference queue capacity is full. Retry the request later.",
+			},
+			request_id: requestId,
+		});
 		const events = recorder.events();
 		expect(events.map((event) => event.type)).toEqual([
 			"inference.request_started",
@@ -183,7 +207,7 @@ describe("personal live inference events", () => {
 		]);
 		expect(events[1]).toMatchObject({
 			decision: "rejected",
-			capacity: { activeGenerations: 1 },
+			capacity: { activeGenerations: 1, queuedGenerations: 1 },
 		});
 		expect(events[2]).toMatchObject({
 			result: { outcome: "rejected", reason: "capacity_exceeded" },
@@ -191,7 +215,63 @@ describe("personal live inference events", () => {
 			capacity: { activeGenerations: 1 },
 		});
 		expect(JSON.stringify(events)).not.toContain("PRIVATE_REJECTED_BODY");
+		queuedCancellation.abort();
+		await queued.wait;
 		active.lease.release();
+	});
+
+	it("publishes queued state and wait time before eventual admission", async () => {
+		const admission = createGenerationAdmissionController();
+		const active = admission.acquire({
+			principalId: "active-account",
+			signal: new AbortController().signal,
+		});
+		if (active.status !== "admitted") {
+			throw new Error("Expected an active lease");
+		}
+		const recorder = createEventRecorder();
+		const pendingResponse = handleGatewayRequest(
+			postRequest("chat/completions", "PRIVATE_QUEUED_EVENT_BODY"),
+			ENDPOINTS["chat/completions"],
+			{
+				admission,
+				createLifecycleObserver: recorder.createLifecycleObserver,
+				fetch: createFetchMock(async () => new Response("done")).fetch,
+			},
+		);
+		await vi.waitFor(() => {
+			expect(admission.snapshot().queuedGenerations).toBe(1);
+		});
+		expect(recorder.events().map((event) => event.type)).toEqual([
+			"inference.request_started",
+			"inference.queued",
+		]);
+		expect(recorder.events()[1]).toMatchObject({
+			capacity: {
+				activeGenerations: 1,
+				queuedGenerations: 1,
+				queueLimit: 64,
+				principalQueuedGenerations: 1,
+				principalQueueLimit: 8,
+			},
+		});
+
+		active.lease.release();
+		const response = await pendingResponse;
+		expect(await response.text()).toBe("done");
+		const events = recorder.events();
+		expect(events.map((event) => event.type)).toEqual([
+			"inference.request_started",
+			"inference.queued",
+			"inference.admission_decided",
+			"inference.terminal",
+		]);
+		expect(events[2]).toMatchObject({ decision: "admitted" });
+		expect(events[3]).toMatchObject({
+			admissionStatus: "admitted",
+			queueWaitMs: expect.any(Number),
+		});
+		expect(JSON.stringify(events)).not.toContain("PRIVATE_QUEUED_EVENT_BODY");
 	});
 
 	it("publishes first output found in the final unterminated SSE frame", async () => {

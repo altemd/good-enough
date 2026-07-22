@@ -223,45 +223,28 @@ export async function runGatewayScenarios(context) {
 	assert.equal(openAiResponse.status, 200);
 	assert.deepEqual(mockState.generationPaths, ["/v1/chat/completions"]);
 
-	const busyResponse = recordResponse(
-		await fetch(`${applicationOrigin}/v1/messages`, {
-			body: REQUEST_BODY,
-			headers: {
-				...anthropicHeaders,
-				"anthropic-version": "2023-06-01",
-				"content-type": "application/json",
-			},
-			method: "POST",
-		}),
-		"anthropic",
-	);
-	assert.equal(busyResponse.status, 429);
-	assert.equal(busyResponse.headers.has("retry-after"), false);
-	const busyRequestId = busyResponse.headers.get("request-id");
-	assert.deepEqual(await busyResponse.json(), {
-		type: "error",
-		error: {
-			type: "rate_limit_error",
-			message:
-				"Inference capacity is currently in use. Retry the request later.",
+	let queuedResponseSettled = false;
+	const queuedResponsePromise = fetch(`${applicationOrigin}/v1/messages`, {
+		body: REQUEST_BODY,
+		headers: {
+			...anthropicHeaders,
+			"anthropic-version": "2023-06-01",
+			"content-type": "application/json",
 		},
-		request_id: busyRequestId,
+		method: "POST",
+	}).then((response) => {
+		queuedResponseSettled = true;
+		return response;
 	});
+	await delay(100);
+	assert.equal(queuedResponseSettled, false);
 	assert.deepEqual(mockState.generationPaths, ["/v1/chat/completions"]);
 
 	await cancelAfterContent(openAiResponse, PRIVATE_COMPLETION);
 	await waitFor(() => mockState.cancelledResponses === 1);
 
 	const anthropicResponse = recordResponse(
-		await fetch(`${applicationOrigin}/v1/messages`, {
-			body: REQUEST_BODY,
-			headers: {
-				...anthropicHeaders,
-				"anthropic-version": "2023-06-01",
-				"content-type": "application/json",
-			},
-			method: "POST",
-		}),
+		await queuedResponsePromise,
 		"anthropic",
 	);
 	assert.equal(anthropicResponse.status, 200);

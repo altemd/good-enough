@@ -15,7 +15,7 @@ import {
 installGatewayTestHooks();
 
 describe("generation admission", () => {
-	it("shares one slot across protocols while discovery bypasses admission", async () => {
+	it("queues generation across protocols while discovery bypasses admission", async () => {
 		const admission = createGenerationAdmissionController();
 		const upstreamCancel = vi.fn();
 		const fetchMock = createFetchMock(async (request) => {
@@ -39,52 +39,46 @@ describe("generation admission", () => {
 			{ admission, fetch: fetchMock.fetch },
 		);
 
-		const busyMetadata = createRecorder();
-		const busy = await handleGatewayRequest(
+		const queuedMetadata = createRecorder();
+		const queuedResponse = handleGatewayRequest(
 			postRequest("messages", "PRIVATE_BUSY_PROMPT"),
 			ENDPOINTS.messages,
-			{ admission, fetch: fetchMock.fetch, record: busyMetadata.record },
+			{ admission, fetch: fetchMock.fetch, record: queuedMetadata.record },
 		);
+		await vi.waitFor(() => {
+			expect(admission.snapshot().queuedGenerations).toBe(1);
+		});
 		const models = await handleGatewayRequest(
 			new Request("https://gateway.example/v1/models"),
 			ENDPOINTS.models,
 			{ admission, fetch: fetchMock.fetch },
 		);
 
-		expect(busy.status).toBe(429);
-		expect(busy.headers.get("retry-after")).toBeNull();
-		const busyRequestId = busy.headers.get("request-id");
-		expect(busyRequestId).toBeTruthy();
-		expect(busy.headers.get("x-request-id")).toBeNull();
-		expect(busy.headers.get("request-id")).toBe(busyRequestId);
-		expect(await busy.json()).toEqual({
-			type: "error",
-			error: {
-				type: "rate_limit_error",
-				message:
-					"Inference capacity is currently in use. Retry the request later.",
-			},
-			request_id: busyRequestId,
-		});
 		expect(await models.text()).toBe('{"data":[]}');
 		expect(fetchMock.mock).toHaveBeenCalledTimes(2);
-		expect(busyMetadata.events).toHaveLength(1);
-		expect(busyMetadata.events[0]).toMatchObject({
-			responseStatus: 429,
-			upstreamStatus: null,
-			outcome: "rejected",
-			rejectionReason: "capacity_exceeded",
-			admissionStatus: "rejected",
-			concurrencyLimit: 1,
-			activeGenerationsAtAdmission: 1,
-			queuedGenerationsAtAdmission: 0,
-		});
-		expect(JSON.stringify(busyMetadata.events[0])).not.toContain(
-			"PRIVATE_BUSY_PROMPT",
-		);
 
 		await first.body?.cancel("release the active slot");
 		expect(upstreamCancel).toHaveBeenCalledTimes(1);
+		const queued = await queuedResponse;
+		expect(queued.status).toBe(200);
+		expect(queued.headers.get("request-id")).toBeTruthy();
+		expect(fetchMock.mock).toHaveBeenCalledTimes(3);
+		await queued.body?.cancel("finish queued request");
+		expect(queuedMetadata.events).toHaveLength(1);
+		expect(queuedMetadata.events[0]).toMatchObject({
+			responseStatus: 200,
+			upstreamStatus: 200,
+			outcome: "cancelled",
+			rejectionReason: null,
+			admissionStatus: "admitted",
+			concurrencyLimit: 1,
+			activeGenerationsAtAdmission: 1,
+			queuedGenerationsAtAdmission: 0,
+			queueWaitMs: expect.any(Number),
+		});
+		expect(JSON.stringify(queuedMetadata.events[0])).not.toContain(
+			"PRIVATE_BUSY_PROMPT",
+		);
 		expect(admission.snapshot().activeGenerations).toBe(0);
 	});
 
@@ -121,10 +115,127 @@ describe("generation admission", () => {
 		expect(admission.snapshot().activeGenerations).toBe(0);
 	});
 
+	it("does not read or forward a queued body before capacity is available", async () => {
+		const admission = createGenerationAdmissionController();
+		const active = admission.acquire({
+			principalId: "active-account",
+			signal: new AbortController().signal,
+		});
+		if (active.status !== "admitted") {
+			throw new Error("Expected an active lease");
+		}
+		const request = new Request("https://gateway.example/v1/chat/completions", {
+			method: "POST",
+			body: new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(encoder.encode("PRIVATE_QUEUED_BODY"));
+					controller.close();
+				},
+			}),
+			duplex: "half",
+		} as RequestInit & { duplex: "half" });
+		const fetchMock = createFetchMock(async (upstreamRequest) => {
+			expect(await upstreamRequest.text()).toBe("PRIVATE_QUEUED_BODY");
+			return new Response("done");
+		});
+
+		const pendingResponse = handleGatewayRequest(
+			request,
+			ENDPOINTS["chat/completions"],
+			{ admission, fetch: fetchMock.fetch },
+		);
+		await vi.waitFor(() => {
+			expect(admission.snapshot().queuedGenerations).toBe(1);
+		});
+		expect(request.bodyUsed).toBe(false);
+		expect(fetchMock.mock).not.toHaveBeenCalled();
+
+		active.lease.release();
+		const response = await pendingResponse;
+		expect(await response.text()).toBe("done");
+		expect(fetchMock.mock).toHaveBeenCalledTimes(1);
+		expect(admission.snapshot().activeGenerations).toBe(0);
+	});
+
+	it("returns a protocol-compatible 429 when queue waiting times out", async () => {
+		vi.useFakeTimers();
+		try {
+			const admission = createGenerationAdmissionController({
+				maxQueuedGenerations: 1,
+				maxQueuedGenerationsPerPrincipal: 1,
+				queueTimeoutMs: 1_000,
+			});
+			const active = admission.acquire({
+				principalId: "active-account",
+				signal: new AbortController().signal,
+			});
+			if (active.status !== "admitted") {
+				throw new Error("Expected an active lease");
+			}
+			const request = postRequest("chat/completions", "PRIVATE_TIMEOUT_BODY");
+			const metadata = createRecorder();
+			const fetchMock = createFetchMock(async () => new Response());
+			const pendingResponse = handleGatewayRequest(
+				request,
+				ENDPOINTS["chat/completions"],
+				{ admission, fetch: fetchMock.fetch, record: metadata.record },
+			);
+			await vi.advanceTimersByTimeAsync(1_000);
+			const response = await pendingResponse;
+
+			expect(response.status).toBe(429);
+			expect(response.headers.get("retry-after")).toBeNull();
+			expect(await response.json()).toMatchObject({
+				error: {
+					type: "rate_limit_error",
+					code: "queue_timeout",
+				},
+			});
+			expect(request.bodyUsed).toBe(false);
+			expect(fetchMock.mock).not.toHaveBeenCalled();
+			expect(metadata.events[0]).toMatchObject({
+				responseStatus: 429,
+				upstreamStatus: null,
+				outcome: "rejected",
+				rejectionReason: "queue_timeout",
+				admissionStatus: "rejected",
+				queueWaitMs: expect.any(Number),
+			});
+			active.lease.release();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("returns a sanitized configuration error before queueing", async () => {
+		const admission = createGenerationAdmissionController();
+		const fetchMock = createFetchMock(async () => new Response());
+		const response = await handleGatewayRequest(
+			postRequest("messages", "PRIVATE_CONFIG_BODY"),
+			ENDPOINTS.messages,
+			{
+				admission,
+				admissionConfigurationError: true,
+				fetch: fetchMock.fetch,
+			},
+		);
+
+		expect(response.status).toBe(500);
+		expect(await response.json()).toMatchObject({
+			type: "error",
+			error: { type: "api_error" },
+		});
+		expect(fetchMock.mock).not.toHaveBeenCalled();
+		expect(admission.snapshot().queuedGenerations).toBe(0);
+	});
+
 	it("does not let routing rejections consume or depend on capacity", async () => {
 		const admission = createGenerationAdmissionController();
-		const active = admission.tryAcquire();
-		if (!active.admitted) {
+		const active = admission.acquire({
+			principalId: "test-account",
+			signal: new AbortController().signal,
+		});
+		if (active.status !== "admitted") {
 			throw new Error("Expected the test lease to be admitted");
 		}
 		const fetchMock = createFetchMock(async () => new Response());
@@ -205,9 +316,12 @@ describe("generation admission", () => {
 
 		expect(await response.text()).toBe("done");
 		expect(admission.snapshot().activeGenerations).toBe(0);
-		const nextDecision = admission.tryAcquire();
-		expect(nextDecision.admitted).toBe(true);
-		if (nextDecision.admitted) {
+		const nextDecision = admission.acquire({
+			principalId: "test-account",
+			signal: new AbortController().signal,
+		});
+		expect(nextDecision.status).toBe("admitted");
+		if (nextDecision.status === "admitted") {
 			nextDecision.lease.release();
 		}
 	});

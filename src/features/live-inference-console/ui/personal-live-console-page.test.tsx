@@ -68,6 +68,22 @@ describe("personal live inference console page", () => {
 		render(<PersonalLiveConsolePage createEventSource={() => source} />);
 
 		act(() =>
+			source.emit("inference.queued", {
+				type: "inference.queued",
+				requestId: "terminal-request",
+				occurredAt: "2026-07-22T01:02:02.000Z",
+				requestKind: "generation",
+				capacity: {
+					activeGenerations: 1,
+					queuedGenerations: 3,
+					concurrencyLimit: 1,
+					queueLimit: 64,
+					principalQueuedGenerations: 2,
+					principalQueueLimit: 8,
+				},
+			}),
+		);
+		act(() =>
 			source.emit("inference.admission_decided", {
 				type: "inference.admission_decided",
 				requestId: "terminal-request",
@@ -78,6 +94,9 @@ describe("personal live inference console page", () => {
 					activeGenerations: 1,
 					queuedGenerations: 0,
 					concurrencyLimit: 1,
+					queueLimit: 64,
+					principalQueuedGenerations: 0,
+					principalQueueLimit: 8,
 				},
 			}),
 		);
@@ -101,11 +120,15 @@ describe("personal live inference console page", () => {
 				responseStatus: 200,
 				upstreamStatus: 200,
 				upstreamHeadersMs: 25,
+				queueWaitMs: null,
 				durationMs: 1_250,
 				capacity: {
 					activeGenerations: 1,
 					queuedGenerations: 0,
 					concurrencyLimit: 1,
+					queueLimit: 64,
+					principalQueuedGenerations: 0,
+					principalQueueLimit: 8,
 				},
 				metrics: {
 					ttftMs: 125,
@@ -126,6 +149,10 @@ describe("personal live inference console page", () => {
 		);
 
 		expect(screen.getByText("Capacity admitted")).toBeTruthy();
+		expect(screen.getByText("Queued for capacity")).toBeTruthy();
+		expect(
+			screen.getByText("1/1 active · 3/64 queued globally · 2/8 queued by you"),
+		).toBeTruthy();
 		expect(screen.getByText("1/1 active · 0 queued")).toBeTruthy();
 		expect(screen.getByText("First output")).toBeTruthy();
 		expect(screen.getByText("completed")).toBeTruthy();
