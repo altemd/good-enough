@@ -153,7 +153,11 @@ token only in the same-origin `Authorization` header. It incrementally renders
 text and optional reasoning, supports cancellation, and maps authentication,
 capacity, connection, and protocol failures to fixed messages without showing
 upstream error bodies. Tool-call arguments are not rendered by this focused
-chat.
+chat. Small stream deltas are coalesced until the browser's next paint before
+React updates, without changing the retained text. The bounded,
+keyboard-focusable transcript follows new output while the reader remains near
+the bottom and stops following when the reader scrolls upward; submitting a new
+turn resumes bottom-following.
 
 The chat retains the complete page-lifetime conversation in React memory,
 including assistant reasoning needed by compatible model templates. Each
