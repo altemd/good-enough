@@ -82,7 +82,7 @@ export function PublicDemoPage({
 			<div
 				className={
 					credential
-						? "mx-auto grid max-w-[90rem] gap-6 px-5 py-8 sm:px-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(24rem,0.75fr)] xl:items-start"
+						? "mx-auto grid max-w-[90rem] gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.75fr)] lg:items-start"
 						: "mx-auto grid max-w-6xl gap-8 px-5 py-12 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:py-20"
 				}
 			>
@@ -119,35 +119,6 @@ export function PublicDemoPage({
 									? "API key ready"
 									: "Get a free one-hour API key"}
 						</Button>
-						<section
-							className="mt-7 max-w-lg rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-emerald-950 shadow-xs"
-							aria-labelledby="privacy-title"
-						>
-							<div className="flex items-center gap-2">
-								<ShieldCheck className="size-5 text-emerald-700" />
-								<h2 id="privacy-title" className="font-semibold">
-									What gets stored?
-								</h2>
-							</div>
-							<p className="mt-3 text-sm leading-6">
-								Good Enough does not persist inference content: your prompts,
-								responses, reasoning, and tool arguments are not saved.
-							</p>
-							<ul className="mt-3 grid gap-2 text-xs leading-5 text-emerald-900/80">
-								<li>
-									The temporary key and chat history exist only in this browser
-									tab; refreshing the page or dismissing the key clears them.
-								</li>
-								<li>
-									Live request timing does not contain inference content and is
-									not saved or replayed.
-								</li>
-								<li>
-									If you create an account, the server stores only the records
-									needed for the account, session, and API keys.
-								</li>
-							</ul>
-						</section>
 						{error ? (
 							<p
 								className="mt-5 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -161,19 +132,7 @@ export function PublicDemoPage({
 
 				{credential ? (
 					<>
-						<section
-							className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm leading-6 text-emerald-950 xl:col-span-2"
-							aria-label="Inference privacy"
-						>
-							<ShieldCheck className="mt-1 size-4 shrink-0 text-emerald-700" />
-							<p>
-								<span className="font-medium">Privacy:</span> Prompts,
-								responses, reasoning, and tool arguments are not stored. The
-								plaintext key and chat stay in this tab; request timing is
-								live-only and not replayed.
-							</p>
-						</section>
-						<section className="min-w-0 overflow-hidden rounded-3xl border bg-card shadow-xl shadow-black/5">
+						<section className="order-2 min-w-0 overflow-hidden rounded-3xl border bg-card shadow-xl shadow-black/5 lg:order-1">
 							{models.length > 0 ? (
 								<DemoChat apiKey={credential.apiKey} models={models} />
 							) : (
@@ -191,7 +150,7 @@ export function PublicDemoPage({
 							)}
 						</section>
 						<aside
-							className="min-w-0 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain"
+							className="order-1 min-w-0 lg:order-2 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain"
 							aria-label="Temporary API key and client setup"
 						>
 							<ApiCredentialOnboarding
@@ -205,7 +164,10 @@ export function PublicDemoPage({
 						</aside>
 					</>
 				) : (
-					<DemoInvitation />
+					<div className="grid gap-6">
+						<DemoInvitation />
+						<PrivacySummary />
+					</div>
 				)}
 			</div>
 
@@ -238,6 +200,40 @@ function DemoInvitation() {
 				or Anthropic; compatibility refers to the API format.
 			</p>
 		</aside>
+	);
+}
+
+function PrivacySummary() {
+	return (
+		<section
+			className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-emerald-950 shadow-xs"
+			aria-labelledby="privacy-title"
+		>
+			<div className="flex items-center gap-2">
+				<ShieldCheck className="size-5 text-emerald-700" />
+				<h2 id="privacy-title" className="font-semibold">
+					What gets stored?
+				</h2>
+			</div>
+			<p className="mt-3 text-sm leading-6">
+				Good Enough does not persist inference content: your prompts, responses,
+				reasoning, and tool arguments are not saved.
+			</p>
+			<ul className="mt-3 grid gap-2 text-xs leading-5 text-emerald-900/80">
+				<li>
+					The temporary key and chat history exist only in this browser tab;
+					refreshing the page or dismissing the key clears them.
+				</li>
+				<li>
+					Live request timing does not contain inference content and is not
+					saved or replayed.
+				</li>
+				<li>
+					If you create an account, the server stores only the records needed
+					for the account, session, and API keys.
+				</li>
+			</ul>
+		</section>
 	);
 }
 

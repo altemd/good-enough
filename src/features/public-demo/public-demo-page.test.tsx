@@ -122,12 +122,16 @@ describe("public demo page", () => {
 		await screen.findByText("ge_demo_selector_private-secret");
 		expect(issueDemoToken).toHaveBeenCalledOnce();
 		expect(storageWrite).not.toHaveBeenCalled();
-		await screen.findByRole("heading", { name: "Live demo chat" });
-		expect(
-			screen.getByRole("complementary", {
-				name: "Temporary API key and client setup",
-			}),
-		).toBeTruthy();
+		const chatHeading = await screen.findByRole("heading", {
+			name: "Live demo chat",
+		});
+		const setupPanel = screen.getByRole("complementary", {
+			name: "Temporary API key and client setup",
+		});
+		expect(setupPanel.className).toContain("order-1");
+		expect(setupPanel.className).toContain("lg:order-2");
+		expect(chatHeading.closest("section")?.className).toContain("order-2");
+		expect(chatHeading.closest("section")?.className).toContain("lg:order-1");
 		expect(
 			screen.queryByRole("heading", { name: "Are local models good enough?" }),
 		).toBeNull();
@@ -136,15 +140,9 @@ describe("public demo page", () => {
 				name: "Seven-day API keys and live request timing",
 			}),
 		).toBeNull();
-		const privacyNotice = screen.getByRole("region", {
-			name: "Inference privacy",
-		});
-		expect(privacyNotice.textContent).toContain(
-			"Prompts, responses, reasoning, and tool arguments are not stored.",
-		);
-		expect(privacyNotice.textContent).toContain(
-			"request timing is live-only and not replayed",
-		);
+		expect(
+			screen.queryByRole("region", { name: "Inference privacy" }),
+		).toBeNull();
 		expect(discoverOpenAiModelIds).toHaveBeenCalledWith(
 			"ge_demo_selector_private-secret",
 			expect.objectContaining({ signal: expect.any(AbortSignal) }),
