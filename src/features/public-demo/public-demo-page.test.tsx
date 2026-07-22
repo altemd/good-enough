@@ -9,13 +9,34 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { loadDemoModels, streamDemoChat } from "./demo-chat-transport.ts";
+import { discoverOpenAiModelIds } from "#/features/inference-gateway/openai-model-discovery";
+
+import { streamDemoChat } from "./demo-chat-transport.ts";
 import { PublicDemoPage } from "./public-demo-page.tsx";
+
+vi.mock("#/features/inference-gateway/openai-model-discovery", () => ({
+	discoverOpenAiModelIds: vi.fn(),
+}));
 
 vi.mock("./demo-chat-transport.ts", async (importOriginal) => ({
 	...(await importOriginal<typeof import("./demo-chat-transport.ts")>()),
-	loadDemoModels: vi.fn(),
 	streamDemoChat: vi.fn(),
+}));
+
+vi.mock("./public-auth-controls", () => ({
+	PublicAuthControls: ({
+		account,
+	}: {
+		account: { username: string } | null;
+	}) =>
+		account ? (
+			<a href="/account">Open account</a>
+		) : (
+			<button type="button">Sign in</button>
+		),
+	PublicRegistrationControl: () => (
+		<button type="button">Create account</button>
+	),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -32,8 +53,8 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 beforeEach(() => {
-	vi.mocked(loadDemoModels).mockReset();
-	vi.mocked(loadDemoModels).mockResolvedValue(["local-model"]);
+	vi.mocked(discoverOpenAiModelIds).mockReset();
+	vi.mocked(discoverOpenAiModelIds).mockResolvedValue(["local-model"]);
 	vi.mocked(streamDemoChat).mockReset();
 	vi.mocked(streamDemoChat).mockImplementation(async ({ onDelta }) => {
 		onDelta({ reasoning: "Brief reasoning" });
@@ -58,13 +79,31 @@ describe("public demo page", () => {
 		}));
 		const storageWrite = vi.spyOn(Storage.prototype, "setItem");
 
-		render(<PublicDemoPage account={null} issueDemoToken={issueDemoToken} />);
+		render(
+			<PublicDemoPage
+				account={null}
+				entryState={ENTRY_STATE}
+				issueDemoToken={issueDemoToken}
+			/>,
+		);
 
 		expect(issueDemoToken).not.toHaveBeenCalled();
 		expect(screen.queryByText("ge_demo_selector_private-secret")).toBeNull();
+		expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy();
 		expect(
-			screen.getByRole("link", { name: "Sign in" }).getAttribute("href"),
-		).toBe("/login");
+			screen.getByRole("heading", { name: "Are local models good enough?" }),
+		).toBeTruthy();
+		expect(
+			screen.getByText(
+				"Local inference · OpenAI- and Anthropic-compatible APIs",
+			),
+		).toBeTruthy();
+		expect(
+			screen.getByText(
+				"Try one for an hour on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo) host.",
+			),
+		).toBeTruthy();
+		expect(screen.getByText("example preview · synthetic events")).toBeTruthy();
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "Start one-hour demo" }),
@@ -74,10 +113,12 @@ describe("public demo page", () => {
 		expect(issueDemoToken).toHaveBeenCalledOnce();
 		expect(storageWrite).not.toHaveBeenCalled();
 		await screen.findByRole("heading", { name: "Live demo chat" });
-		expect(loadDemoModels).toHaveBeenCalledWith(
+		expect(discoverOpenAiModelIds).toHaveBeenCalledWith(
 			"ge_demo_selector_private-secret",
 			expect.objectContaining({ signal: expect.any(AbortSignal) }),
 		);
+		expect(discoverOpenAiModelIds).toHaveBeenCalledOnce();
+		expect(await screen.findByLabelText("OpenCode configuration")).toBeTruthy();
 
 		fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
 		expect(screen.queryByText("ge_demo_selector_private-secret")).toBeNull();
@@ -97,7 +138,13 @@ describe("public demo page", () => {
 		}));
 		const storageWrite = vi.spyOn(Storage.prototype, "setItem");
 
-		render(<PublicDemoPage account={null} issueDemoToken={issueDemoToken} />);
+		render(
+			<PublicDemoPage
+				account={null}
+				entryState={ENTRY_STATE}
+				issueDemoToken={issueDemoToken}
+			/>,
+		);
 		fireEvent.click(
 			screen.getByRole("button", { name: "Start one-hour demo" }),
 		);
@@ -154,7 +201,13 @@ describe("public demo page", () => {
 			},
 		}));
 
-		render(<PublicDemoPage account={null} issueDemoToken={issueDemoToken} />);
+		render(
+			<PublicDemoPage
+				account={null}
+				entryState={ENTRY_STATE}
+				issueDemoToken={issueDemoToken}
+			/>,
+		);
 		fireEvent.click(
 			screen.getByRole("button", { name: "Start one-hour demo" }),
 		);
@@ -197,7 +250,13 @@ describe("public demo page", () => {
 			},
 		}));
 
-		render(<PublicDemoPage account={null} issueDemoToken={issueDemoToken} />);
+		render(
+			<PublicDemoPage
+				account={null}
+				entryState={ENTRY_STATE}
+				issueDemoToken={issueDemoToken}
+			/>,
+		);
 		fireEvent.click(
 			screen.getByRole("button", { name: "Start one-hour demo" }),
 		);
@@ -220,7 +279,13 @@ describe("public demo page", () => {
 			retryAfterSeconds: 120,
 		}));
 
-		render(<PublicDemoPage account={null} issueDemoToken={issueDemoToken} />);
+		render(
+			<PublicDemoPage
+				account={null}
+				entryState={ENTRY_STATE}
+				issueDemoToken={issueDemoToken}
+			/>,
+		);
 		fireEvent.click(
 			screen.getByRole("button", { name: "Start one-hour demo" }),
 		);
@@ -241,6 +306,7 @@ describe("public demo page", () => {
 					role: "member",
 					mustChangePassword: false,
 				}}
+				entryState={ENTRY_STATE}
 				issueDemoToken={vi.fn()}
 			/>,
 		);
@@ -251,3 +317,9 @@ describe("public demo page", () => {
 		expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
 	});
 });
+
+const ENTRY_STATE = {
+	configurationValid: true,
+	registrationEnabled: true,
+	setupRequired: false,
+};

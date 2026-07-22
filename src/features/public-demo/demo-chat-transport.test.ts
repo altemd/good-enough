@@ -3,37 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	DemoChatError,
 	type DemoChatRequestMessage,
-	loadDemoModels,
 	streamDemoChat,
 } from "./demo-chat-transport.ts";
 
 const API_KEY = "ge_demo_selector_private-secret";
 
 describe("demo chat transport", () => {
-	it("discovers bounded model IDs with the in-memory bearer credential", async () => {
-		const fetcher = vi.fn(async () =>
-			jsonResponse({
-				object: "list",
-				data: [{ id: "local-model" }, { id: "second-model" }],
-			}),
-		) as unknown as typeof fetch;
-
-		await expect(loadDemoModels(API_KEY, { fetcher })).resolves.toEqual([
-			"local-model",
-			"second-model",
-		]);
-		expect(fetcher).toHaveBeenCalledWith(
-			"/v1/models",
-			expect.objectContaining({
-				cache: "no-store",
-				credentials: "omit",
-				headers: expect.objectContaining({
-					authorization: `Bearer ${API_KEY}`,
-				}),
-			}),
-		);
-	});
-
 	it("parses content and reasoning across arbitrary SSE chunk boundaries", async () => {
 		const deltas: Array<{ content?: string; reasoning?: string }> = [];
 		const fetcher = vi.fn(async (_input, init) => {
@@ -226,12 +201,6 @@ describe("demo chat transport", () => {
 		await expect(request).rejects.toMatchObject({ name: "AbortError" });
 	});
 });
-
-function jsonResponse(value: unknown) {
-	return new Response(JSON.stringify(value), {
-		headers: { "content-type": "application/json" },
-	});
-}
 
 function sseResponse(chunks: string[]) {
 	const encoder = new TextEncoder();

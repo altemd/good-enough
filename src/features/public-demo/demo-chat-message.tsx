@@ -1,6 +1,7 @@
 import { Bot, Brain, UserRound } from "lucide-react";
 
 import type { DemoChatRequestMessage } from "./demo-chat-transport";
+import { ModelMarkdown } from "./model-markdown";
 
 export interface DemoChatMessage extends DemoChatRequestMessage {
 	id: number;
@@ -21,20 +22,28 @@ export function DemoChatMessageView({ message }: { message: DemoChatMessage }) {
 				}`}
 			>
 				{message.reasoning ? (
-					<details className="mb-3 rounded-xl border bg-muted/50 p-3 text-foreground">
+					<details
+						className="mb-3 rounded-xl border bg-muted/50 p-3 text-foreground"
+						open={message.status === "streaming"}
+					>
 						<summary className="flex cursor-pointer items-center gap-2 font-medium">
 							<Brain className="size-4" />
 							Reasoning
 						</summary>
-						<p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+						<ModelMarkdown className="mt-2 text-muted-foreground">
 							{message.reasoning}
-						</p>
+						</ModelMarkdown>
 					</details>
 				) : null}
-				<p className="whitespace-pre-wrap">
-					{message.content ||
-						(message.status === "streaming" ? "Waiting for response…" : "")}
-				</p>
+				{message.content ? (
+					isUser ? (
+						<p className="whitespace-pre-wrap">{message.content}</p>
+					) : (
+						<ModelMarkdown>{message.content}</ModelMarkdown>
+					)
+				) : message.status === "streaming" ? (
+					<p>Waiting for response…</p>
+				) : null}
 				{message.status === "stopped" ? (
 					<p className="mt-2 text-xs opacity-70">Generation stopped.</p>
 				) : null}

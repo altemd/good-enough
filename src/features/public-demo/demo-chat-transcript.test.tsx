@@ -46,13 +46,7 @@ function renderTranscript(messages: DemoChatMessage[], forceScrollKey: number) {
 
 function transcriptView(messages: DemoChatMessage[], forceScrollKey: number) {
 	return (
-		<DemoChatTranscript
-			modelsReady={true}
-			modelError={null}
-			messages={messages}
-			forceScrollKey={forceScrollKey}
-			onRetryModelDiscovery={() => {}}
-		/>
+		<DemoChatTranscript messages={messages} forceScrollKey={forceScrollKey} />
 	);
 }
 

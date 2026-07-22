@@ -1,13 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { getCurrentAccount } from "#/features/accounts/access/account-access.functions";
+import {
+	getAccountEntryState,
+	getCurrentAccount,
+} from "#/features/accounts/access/account-access.functions";
 import { PublicDemoRoutePage } from "#/features/public-demo/public-demo-route";
 
 export const Route = createFileRoute("/")({
-	loader: () => getCurrentAccount(),
+	loader: async () => {
+		const [account, entryState] = await Promise.all([
+			getCurrentAccount(),
+			getAccountEntryState(),
+		]);
+		return { account, entryState };
+	},
 	component: IndexRoute,
 });
 
 function IndexRoute() {
-	return <PublicDemoRoutePage account={Route.useLoaderData()} />;
+	return <PublicDemoRoutePage {...Route.useLoaderData()} />;
 }

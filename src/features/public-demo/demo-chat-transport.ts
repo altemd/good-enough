@@ -1,4 +1,3 @@
-const MAX_RESPONSE_BYTES = 64 * 1024;
 const MAX_SSE_EVENT_BYTES = 64 * 1024;
 
 export interface DemoChatRequestMessage {
@@ -29,11 +28,6 @@ export class DemoChatError extends Error {
 	}
 }
 
-interface LoadDemoModelsOptions {
-	signal?: AbortSignal;
-	fetcher?: typeof fetch;
-}
-
 interface StreamDemoChatOptions {
 	apiKey: string;
 	model: string;
@@ -41,50 +35,6 @@ interface StreamDemoChatOptions {
 	signal: AbortSignal;
 	onDelta: (delta: DemoChatDelta) => void;
 	fetcher?: typeof fetch;
-}
-
-export async function loadDemoModels(
-	apiKey: string,
-	options: LoadDemoModelsOptions = {},
-) {
-	const response = await performFetch(options.fetcher ?? fetch, "/v1/models", {
-		cache: "no-store",
-		credentials: "omit",
-		headers: {
-			accept: "application/json",
-			authorization: `Bearer ${apiKey}`,
-		},
-		signal: options.signal,
-	});
-	ensureSuccessfulResponse(response);
-	const body = await readBoundedText(response, MAX_RESPONSE_BYTES);
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(body);
-	} catch {
-		throw protocolError();
-	}
-	if (!isRecord(parsed) || !Array.isArray(parsed.data)) {
-		throw protocolError();
-	}
-	const models = parsed.data
-		.map((value) =>
-			isRecord(value) &&
-			typeof value.id === "string" &&
-			value.id.length > 0 &&
-			value.id.length <= 256
-				? value.id
-				: null,
-		)
-		.filter((value): value is string => value !== null)
-		.slice(0, 100);
-	if (models.length === 0) {
-		throw new DemoChatError(
-			"configuration",
-			"No demo model is currently available.",
-		);
-	}
-	return models;
 }
 
 export async function streamDemoChat({
@@ -234,31 +184,6 @@ function ensureSuccessfulResponse(response: Response) {
 		);
 	}
 	throw protocolError();
-}
-
-async function readBoundedText(response: Response, limit: number) {
-	if (!response.body) return "";
-	const reader = response.body.getReader();
-	const chunks: Uint8Array[] = [];
-	let length = 0;
-	try {
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			length += value.byteLength;
-			if (length > limit) throw protocolError();
-			chunks.push(value);
-		}
-	} finally {
-		reader.releaseLock();
-	}
-	const body = new Uint8Array(length);
-	let offset = 0;
-	for (const chunk of chunks) {
-		body.set(chunk, offset);
-		offset += chunk.byteLength;
-	}
-	return new TextDecoder().decode(body);
 }
 
 function validateRequest(model: string, messages: DemoChatRequestMessage[]) {

@@ -1,23 +1,16 @@
-import { Bot, LoaderCircle, RotateCcw } from "lucide-react";
+import { Bot } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 
-import { Button } from "#/components/ui/button";
 import { type DemoChatMessage, DemoChatMessageView } from "./demo-chat-message";
 
 const BOTTOM_PROXIMITY_PX = 48;
 
 export function DemoChatTranscript({
-	modelsReady,
-	modelError,
 	messages,
 	forceScrollKey,
-	onRetryModelDiscovery,
 }: {
-	modelsReady: boolean;
-	modelError: string | null;
 	messages: DemoChatMessage[];
 	forceScrollKey: number;
-	onRetryModelDiscovery: () => void;
 }) {
 	const viewport = useRef<HTMLDivElement>(null);
 	const followsLatest = useRef(true);
@@ -36,7 +29,7 @@ export function DemoChatTranscript({
 	return (
 		<div
 			ref={viewport}
-			className="h-[min(60vh,42rem)] min-h-96 space-y-5 overflow-y-auto overscroll-contain bg-muted/20 p-5 sm:p-7"
+			className="h-[min(56vh,34rem)] min-h-80 space-y-5 overflow-y-auto overscroll-contain bg-muted/20 p-5 sm:p-7"
 			role="log"
 			aria-label="Demo conversation"
 			aria-live="polite"
@@ -50,30 +43,7 @@ export function DemoChatTranscript({
 				followsLatest.current = distanceFromBottom <= BOTTOM_PROXIMITY_PX;
 			}}
 		>
-			{!modelsReady && !modelError ? (
-				<EmptyState
-					icon={<LoaderCircle className="animate-spin" />}
-					title="Finding the local model"
-					body="Model discovery does not consume generation capacity."
-				/>
-			) : null}
-			{modelError ? (
-				<EmptyState
-					icon={<RotateCcw />}
-					title="Chat is unavailable"
-					body={modelError}
-					action={
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onRetryModelDiscovery}
-						>
-							Try model discovery again
-						</Button>
-					}
-				/>
-			) : null}
-			{modelsReady && messages.length === 0 ? (
+			{messages.length === 0 ? (
 				<EmptyState
 					icon={<Bot />}
 					title="Ask the local model"
@@ -91,12 +61,10 @@ function EmptyState({
 	icon,
 	title,
 	body,
-	action,
 }: {
 	icon: React.ReactNode;
 	title: string;
 	body: string;
-	action?: React.ReactNode;
 }) {
 	return (
 		<div className="flex min-h-80 flex-col items-center justify-center text-center">
@@ -107,7 +75,6 @@ function EmptyState({
 			<p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">
 				{body}
 			</p>
-			{action ? <div className="mt-4">{action}</div> : null}
 		</div>
 	);
 }

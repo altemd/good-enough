@@ -9,15 +9,17 @@ import { DemoChatTranscript } from "./demo-chat-transcript";
 import {
 	type DemoChatDelta,
 	DemoChatError,
-	loadDemoModels,
 	streamDemoChat,
 } from "./demo-chat-transport";
 
-export function DemoChat({ apiKey }: { apiKey: string }) {
-	const [models, setModels] = useState<string[]>([]);
-	const [model, setModel] = useState("");
-	const [modelError, setModelError] = useState<string | null>(null);
-	const [modelAttempt, setModelAttempt] = useState(0);
+export function DemoChat({
+	apiKey,
+	models,
+}: {
+	apiKey: string;
+	models: string[];
+}) {
+	const [model, setModel] = useState(models[0] ?? "");
 	const [messages, setMessages] = useState<DemoChatMessage[]>([]);
 	const [prompt, setPrompt] = useState("");
 	const [requestError, setRequestError] = useState<string | null>(null);
@@ -25,24 +27,6 @@ export function DemoChat({ apiKey }: { apiKey: string }) {
 	const [forceScrollKey, setForceScrollKey] = useState(0);
 	const abortController = useRef<AbortController | null>(null);
 	const nextMessageId = useRef(1);
-
-	useEffect(() => {
-		void modelAttempt;
-		const controller = new AbortController();
-		setModels([]);
-		setModel("");
-		setModelError(null);
-		loadDemoModels(apiKey, { signal: controller.signal })
-			.then((availableModels) => {
-				if (controller.signal.aborted) return;
-				setModels(availableModels);
-				setModel(availableModels[0] ?? "");
-			})
-			.catch((error: unknown) => {
-				if (!controller.signal.aborted) setModelError(messageFor(error));
-			});
-		return () => controller.abort();
-	}, [apiKey, modelAttempt]);
 
 	useEffect(() => () => abortController.current?.abort(), []);
 
@@ -147,72 +131,64 @@ export function DemoChat({ apiKey }: { apiKey: string }) {
 	}
 
 	return (
-		<section className="mx-auto max-w-6xl px-5 pb-16 sm:px-8 lg:pb-24">
-			<div className="overflow-hidden rounded-3xl border bg-card shadow-xl shadow-black/5">
-				<header className="flex flex-wrap items-center gap-3 border-b px-5 py-4 sm:px-7">
-					<div>
-						<div className="flex items-center gap-2">
-							<h2 className="font-semibold">Live demo chat</h2>
-							<span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
-								Ephemeral
-							</span>
-						</div>
-						<p className="mt-1 text-xs text-muted-foreground">
-							This tab keeps the complete conversation. Refreshing or dismissing
-							the token clears it.
-						</p>
+		<>
+			<header className="flex flex-wrap items-center gap-3 border-b px-5 py-4 sm:px-7">
+				<div>
+					<div className="flex items-center gap-2">
+						<h2 className="font-semibold">Live demo chat</h2>
+						<span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+							Ephemeral
+						</span>
 					</div>
-					<div className="ml-auto flex flex-wrap items-center gap-3">
-						{messages.length > 0 ? (
-							<Button
-								type="button"
-								variant="outline"
+					<p className="mt-1 text-xs text-muted-foreground">
+						This tab keeps the complete conversation. Refreshing or dismissing
+						the token clears it.
+					</p>
+				</div>
+				<div className="ml-auto flex flex-wrap items-center gap-3">
+					{messages.length > 0 ? (
+						<Button
+							type="button"
+							variant="outline"
+							disabled={isStreaming}
+							onClick={startNewConversation}
+						>
+							<RotateCcw data-icon="inline-start" />
+							New conversation
+						</Button>
+					) : null}
+					{models.length > 0 ? (
+						<label className="text-xs text-muted-foreground">
+							Model
+							<select
+								className="ml-2 max-w-64 rounded-xl border bg-background px-3 py-2 text-sm text-foreground"
+								value={model}
 								disabled={isStreaming}
-								onClick={startNewConversation}
+								onChange={(event) => setModel(event.currentTarget.value)}
 							>
-								<RotateCcw data-icon="inline-start" />
-								New conversation
-							</Button>
-						) : null}
-						{models.length > 0 ? (
-							<label className="text-xs text-muted-foreground">
-								Model
-								<select
-									className="ml-2 max-w-64 rounded-xl border bg-background px-3 py-2 text-sm text-foreground"
-									value={model}
-									disabled={isStreaming}
-									onChange={(event) => setModel(event.currentTarget.value)}
-								>
-									{models.map((availableModel) => (
-										<option key={availableModel} value={availableModel}>
-											{availableModel}
-										</option>
-									))}
-								</select>
-							</label>
-						) : null}
-					</div>
-				</header>
+								{models.map((availableModel) => (
+									<option key={availableModel} value={availableModel}>
+										{availableModel}
+									</option>
+								))}
+							</select>
+						</label>
+					) : null}
+				</div>
+			</header>
 
-				<DemoChatTranscript
-					modelsReady={models.length > 0}
-					modelError={modelError}
-					messages={messages}
-					forceScrollKey={forceScrollKey}
-					onRetryModelDiscovery={() => setModelAttempt((value) => value + 1)}
-				/>
+			<DemoChatTranscript messages={messages} forceScrollKey={forceScrollKey} />
 
-				<DemoChatComposer
-					prompt={prompt}
-					modelReady={model.length > 0}
-					isStreaming={isStreaming}
-					error={requestError}
-					onPromptChange={setPrompt}
-					onSubmit={submitPrompt}
-					onStop={() => abortController.current?.abort()}
-				/>
-			</div>
-		</section>
+			<DemoChatComposer
+				prompt={prompt}
+				modelReady={model.length > 0}
+				isStreaming={isStreaming}
+				error={requestError}
+				onPromptChange={setPrompt}
+				onSubmit={submitPrompt}
+				onStop={() => abortController.current?.abort()}
+			/>
+		</>
 	);
 }
 

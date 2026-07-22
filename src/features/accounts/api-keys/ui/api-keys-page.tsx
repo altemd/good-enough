@@ -2,8 +2,9 @@ import { ClientOnly, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
+import { ApiCredentialOnboarding } from "#/features/client-onboarding/api-credential-onboarding";
+
 import { AccountPageLayout } from "../../ui/account-page-layout";
-import { DisplayOnceSecret } from "../../ui/display-once-secret";
 import {
 	createPersonalApiKey,
 	revokePersonalApiKey,
@@ -22,6 +23,7 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 	const router = useRouter();
 	const [newKey, setNewKey] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [isCreating, setIsCreating] = useState(false);
 
 	return (
 		<AccountPageLayout title="API keys">
@@ -29,30 +31,46 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 				Keys expire seven days after creation. Create a replacement before
 				updating a client.
 			</p>
+			<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+				Inference content is never persisted. Your private live console shows
+				request timing only while connected and starts empty after refresh.
+			</p>
 			<button
 				className="mt-5 rounded bg-black px-4 py-2 text-white"
 				type="button"
+				disabled={isCreating || newKey !== null}
 				onClick={async () => {
 					setError(null);
-					const result = await createKey({ data: {} });
-					if (!result.ok) {
-						setError(
-							"A key could not be created. Revoke an active key if you already have ten.",
-						);
-						return;
+					setIsCreating(true);
+					try {
+						const result = await createKey({ data: {} });
+						if (!result.ok) {
+							setError(
+								"A key could not be created. Revoke an active key if you already have ten.",
+							);
+							return;
+						}
+						setNewKey(result.value.apiKey);
+						try {
+							await router.invalidate();
+						} catch {
+							setError(
+								"The key was created, but the key list could not be refreshed.",
+							);
+						}
+					} catch {
+						setError("A key could not be created. Try again.");
+					} finally {
+						setIsCreating(false);
 					}
-					setNewKey(result.value.apiKey);
-					await router.invalidate();
 				}}
 			>
-				Create key
+				{isCreating ? "Creating…" : "Create key"}
 			</button>
 			{newKey ? (
-				<DisplayOnceSecret
+				<ApiCredentialOnboarding
 					key={newKey}
-					title="Copy this key now"
-					description="It cannot be shown again."
-					secret={newKey}
+					apiKey={newKey}
 					onDismiss={() => setNewKey(null)}
 				/>
 			) : null}

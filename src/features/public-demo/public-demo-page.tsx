@@ -1,23 +1,28 @@
-import { ClientOnly, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
-	ArrowRight,
-	Check,
+	Activity,
 	Clock3,
-	Copy,
-	KeyRound,
+	Gauge,
 	LockKeyhole,
 	Play,
 	Server,
+	Timer,
 } from "lucide-react";
 import { useState } from "react";
 
 import { Button, buttonVariants } from "#/components/ui/button";
+import type { AccountEntryState } from "#/features/accounts/access/ui/access-page";
 import type {
 	AccountMutationResult,
 	CurrentAccount,
 } from "#/features/accounts/account-contract";
+import { ApiCredentialOnboarding } from "#/features/client-onboarding/api-credential-onboarding";
 
 import { DemoChat } from "./demo-chat";
+import {
+	PublicAuthControls,
+	PublicRegistrationControl,
+} from "./public-auth-controls";
 
 interface DemoCredential {
 	apiKey: string;
@@ -27,23 +32,23 @@ interface DemoCredential {
 
 interface PublicDemoPageProps {
 	account: CurrentAccount | null;
+	entryState: AccountEntryState;
 	issueDemoToken: () => Promise<AccountMutationResult<DemoCredential>>;
 }
 
 export function PublicDemoPage({
 	account,
+	entryState,
 	issueDemoToken,
 }: PublicDemoPageProps) {
 	const [credential, setCredential] = useState<DemoCredential | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [isIssuing, setIsIssuing] = useState(false);
-	const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
-		"idle",
-	);
+	const [models, setModels] = useState<string[]>([]);
 
 	async function startDemo() {
 		setError(null);
-		setCopyState("idle");
+		setModels([]);
 		setIsIssuing(true);
 		try {
 			const result = await issueDemoToken();
@@ -59,16 +64,6 @@ export function PublicDemoPage({
 		}
 	}
 
-	async function copyCredential() {
-		if (!credential) return;
-		try {
-			await navigator.clipboard.writeText(credential.apiKey);
-			setCopyState("copied");
-		} catch {
-			setCopyState("failed");
-		}
-	}
-
 	return (
 		<main className="min-h-screen bg-[radial-gradient(circle_at_top_left,oklch(0.97_0_0),transparent_38%),linear-gradient(to_bottom,oklch(1_0_0),oklch(0.985_0_0))]">
 			<header className="border-b border-border/70 bg-background/85 backdrop-blur">
@@ -80,164 +75,210 @@ export function PublicDemoPage({
 						Good Enough
 					</Link>
 					<div className="ml-auto flex items-center gap-2">
-						{account ? (
-							<Link
-								className={buttonVariants({ variant: "outline" })}
-								to="/account"
-							>
-								Open account
-								<ArrowRight data-icon="inline-end" />
-							</Link>
-						) : (
-							<>
-								<Link
-									className={buttonVariants({ variant: "ghost" })}
-									to="/login"
-								>
-									Sign in
-								</Link>
-								<Link
-									className={buttonVariants({ variant: "outline" })}
-									to="/register"
-								>
-									Create account
-								</Link>
-							</>
-						)}
+						<PublicAuthControls account={account} entryState={entryState} />
 					</div>
 				</nav>
 			</header>
 
-			<div className="mx-auto grid max-w-6xl gap-12 px-5 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:py-24">
-				<section>
+			<div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:py-20">
+				<section className="lg:sticky lg:top-10">
 					<div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs">
 						<span className="size-2 rounded-full bg-emerald-500" />
-						Local inference, open compatibility APIs
+						Local inference · OpenAI- and Anthropic-compatible APIs
 					</div>
-					<h1 className="max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-6xl">
-						Try the real API before creating an account.
+					<h1 className="max-w-2xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-6xl">
+						Are local models good enough?
 					</h1>
-					<p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-						Start an explicit one-hour demo with a temporary credential. It uses
-						the same OpenAI- and Anthropic-compatible gateway as registered
-						clients, without saving inference content or linking activity to an
-						account.
+					<p className="mt-5 max-w-lg text-lg text-muted-foreground">
+						Try one for an hour on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo)
+						host.
 					</p>
-
-					<div className="mt-8 flex flex-wrap items-center gap-3">
-						<Button
-							size="lg"
-							type="button"
-							disabled={isIssuing || credential !== null}
-							onClick={startDemo}
-						>
-							<Play data-icon="inline-start" />
-							{isIssuing
-								? "Starting demo…"
-								: credential
-									? "Demo started"
-									: "Start one-hour demo"}
-						</Button>
-						<span className="text-sm text-muted-foreground">
-							Nothing is issued until you click.
-						</span>
-					</div>
-
-					<div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
-						<Feature
-							icon={<Clock3 />}
-							title="One-hour access"
-							body="Absolute expiry; no silent renewal."
-						/>
-						<Feature
-							icon={<LockKeyhole />}
-							title="Memory only"
-							body="Refresh or dismiss to forget the token."
-						/>
-						<Feature
-							icon={<Server />}
-							title="Real local model"
-							body="No external inference provider."
-						/>
-					</div>
-				</section>
-
-				<aside className="rounded-3xl border bg-card p-5 text-card-foreground shadow-xl shadow-black/5 sm:p-7">
-					<div className="flex items-start gap-3">
-						<span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-muted">
-							<KeyRound className="size-5" />
-						</span>
-						<div>
-							<h2 className="font-semibold">Temporary API credential</h2>
-							<p className="mt-1 text-sm leading-6 text-muted-foreground">
-								The complete value appears once and remains only in this page’s
-								memory.
-							</p>
-						</div>
-					</div>
-
-					{credential ? (
-						<div className="mt-6" aria-live="polite">
-							<div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
-								<p className="text-sm font-semibold">Copy this token now</p>
-								<p className="mt-1 text-xs leading-5 text-amber-900/80">
-									It cannot be recovered after you dismiss it or leave this
-									page.
-								</p>
-								<code className="mt-3 block max-h-28 overflow-auto rounded-xl bg-white/80 p-3 text-xs break-all select-all">
-									{credential.apiKey}
-								</code>
-								<div className="mt-3 flex flex-wrap items-center gap-2">
-									<Button size="sm" type="button" onClick={copyCredential}>
-										{copyState === "copied" ? <Check /> : <Copy />}
-										{copyState === "copied" ? "Copied" : "Copy token"}
-									</Button>
-									<Button
-										size="sm"
-										variant="ghost"
-										type="button"
-										onClick={() => {
-											setCredential(null);
-											setCopyState("idle");
-										}}
-									>
-										Dismiss
-									</Button>
-								</div>
-								{copyState === "failed" ? (
-									<output className="mt-2 block text-xs">
-										Copy failed. Select the token and copy it manually.
-									</output>
-								) : null}
-							</div>
-							<p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-								<Clock3 className="size-4" />
-								Expires <DemoExpiry value={credential.expiresAt} />
-							</p>
-						</div>
-					) : (
-						<div className="mt-6 rounded-2xl border border-dashed bg-muted/40 p-6 text-center">
-							<KeyRound className="mx-auto size-7 text-muted-foreground" />
-							<p className="mt-3 text-sm font-medium">No demo token issued</p>
-							<p className="mt-1 text-xs leading-5 text-muted-foreground">
-								Starting the demo creates one independently expiring token. It
-								does not send a prompt or acquire inference capacity.
-							</p>
-						</div>
-					)}
-
+					<Button
+						className="mt-7"
+						size="lg"
+						type="button"
+						disabled={isIssuing || credential !== null}
+						onClick={startDemo}
+					>
+						<Play data-icon="inline-start" />
+						{isIssuing
+							? "Starting…"
+							: credential
+								? "Demo running"
+								: "Start one-hour demo"}
+					</Button>
+					<p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
+						No account required. Prompts, responses, reasoning, and tool
+						arguments are not persisted.
+					</p>
 					{error ? (
 						<p
-							className="mt-4 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
+							className="mt-5 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
 							role="alert"
 						>
 							{error}
 						</p>
 					) : null}
-				</aside>
+				</section>
+
+				{credential ? (
+					<div className="overflow-hidden rounded-3xl border bg-card shadow-xl shadow-black/5">
+						{models.length > 0 ? (
+							<DemoChat apiKey={credential.apiKey} models={models} />
+						) : null}
+						<details
+							className="border-t bg-muted/20 px-5 py-4 sm:px-7"
+							open={models.length === 0}
+						>
+							<summary className="cursor-pointer text-sm font-medium">
+								Temporary API credential and client setup
+							</summary>
+							<ApiCredentialOnboarding
+								apiKey={credential.apiKey}
+								onModelsDiscovered={setModels}
+								onDismiss={() => {
+									setCredential(null);
+									setModels([]);
+								}}
+							/>
+						</details>
+					</div>
+				) : (
+					<DemoInvitation />
+				)}
 			</div>
-			{credential ? <DemoChat apiKey={credential.apiKey} /> : null}
+
+			<RequestTelemetryPitch account={account} entryState={entryState} />
 		</main>
+	);
+}
+
+function DemoInvitation() {
+	return (
+		<aside className="rounded-3xl border bg-card p-6 text-card-foreground shadow-xl shadow-black/5 sm:p-8">
+			<div className="flex items-start gap-3">
+				<span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-muted">
+					<Server className="size-5" />
+				</span>
+				<div>
+					<h2 className="font-semibold">One click opens the chat</h2>
+					<p className="mt-1 text-sm leading-6 text-muted-foreground">
+						Choose an available model and watch its response stream in real
+						time.
+					</p>
+				</div>
+			</div>
+			<div className="mt-7 grid gap-3 sm:grid-cols-3">
+				<Feature icon={<Clock3 />} title="One hour" body="Absolute expiry." />
+				<Feature
+					icon={<LockKeyhole />}
+					title="Tab only"
+					body="Refresh clears it."
+				/>
+				<Feature
+					icon={<Activity />}
+					title="Real stream"
+					body="No external provider."
+				/>
+			</div>
+		</aside>
+	);
+}
+
+function RequestTelemetryPitch({
+	account,
+	entryState,
+}: {
+	account: CurrentAccount | null;
+	entryState: AccountEntryState;
+}) {
+	return (
+		<section className="border-t bg-background/75">
+			<div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:py-24">
+				<div>
+					<p className="text-sm font-medium text-muted-foreground">
+						Private request telemetry
+					</p>
+					<h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+						See what each request is doing.
+					</h2>
+					<p className="mt-4 max-w-xl leading-7 text-muted-foreground">
+						Sign up to watch TTFT, duration, token counts, prompt and generation
+						speed, cache reuse, and capacity state for your own API requests.
+						The feed is live-only and starts empty after refresh.
+					</p>
+					<div className="mt-6">
+						{account ? (
+							<Link
+								className={buttonVariants({ variant: "outline", size: "lg" })}
+								to="/account/live-console"
+							>
+								Open live console
+							</Link>
+						) : (
+							<PublicRegistrationControl
+								state={entryState}
+								label="Create account"
+							/>
+						)}
+					</div>
+				</div>
+				<TelemetryPreview />
+			</div>
+		</section>
+	);
+}
+
+function TelemetryPreview() {
+	const lines = [
+		{
+			icon: <Activity />,
+			title: "request accepted",
+			detail: "chat · admitted",
+		},
+		{ icon: <Timer />, title: "first output", detail: "TTFT 438 ms" },
+		{
+			icon: <Gauge />,
+			title: "request complete",
+			detail: "1.8 s · 42 tokens · 38.6 tok/s · cache reused",
+		},
+	];
+	return (
+		<section
+			className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 shadow-2xl"
+			aria-label="Example request telemetry preview"
+		>
+			<header className="flex items-center border-b border-slate-800 px-4 py-3">
+				<div className="flex gap-1.5" aria-hidden="true">
+					<span className="size-2.5 rounded-full bg-rose-400" />
+					<span className="size-2.5 rounded-full bg-amber-300" />
+					<span className="size-2.5 rounded-full bg-emerald-400" />
+				</div>
+				<p className="ml-3 font-mono text-xs text-slate-400">
+					example preview · synthetic events
+				</p>
+			</header>
+			<ol className="space-y-1 p-3 font-mono text-xs">
+				{lines.map((line, index) => (
+					<li
+						className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl px-3 py-3 hover:bg-white/5"
+						key={line.title}
+					>
+						<span className="text-slate-600">12:04:0{index + 1}Z</span>
+						<div>
+							<p className="flex items-center gap-2 text-sky-300 [&_svg]:size-3.5">
+								{line.icon}
+								{line.title}
+							</p>
+							<p className="mt-1 text-slate-400">{line.detail}</p>
+						</div>
+					</li>
+				))}
+			</ol>
+			<p className="border-t border-slate-800 px-4 py-3 font-mono text-[11px] text-slate-500">
+				No prompt, response, reasoning, credential, or username is included.
+			</p>
+		</section>
 	);
 }
 
@@ -257,25 +298,6 @@ function Feature({
 			<p className="mt-1 text-xs leading-5 text-muted-foreground">{body}</p>
 		</div>
 	);
-}
-
-function DemoExpiry({ value }: { value: number }) {
-	const instant = new Date(value);
-	const isoDate = instant.toISOString();
-	return (
-		<ClientOnly fallback={<time dateTime={isoDate}>{formatUtc(isoDate)}</time>}>
-			<time dateTime={isoDate}>
-				{new Intl.DateTimeFormat(undefined, {
-					dateStyle: "medium",
-					timeStyle: "short",
-				}).format(instant)}
-			</time>
-		</ClientOnly>
-	);
-}
-
-function formatUtc(isoDate: string) {
-	return `${isoDate.slice(0, 10)} ${isoDate.slice(11, 16)} UTC`;
 }
 
 function messageForDemoFailure(
