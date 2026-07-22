@@ -76,12 +76,6 @@ export function PersonalLiveConsolePage({
 		<AccountPageLayout title="Live inference console">
 			<div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
 				<ConnectionBadge state={connection} />
-				<span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-900">
-					Live measurements · not simulated
-				</span>
-				<span className="rounded-full border px-3 py-1 text-slate-600">
-					Privacy-filtered · ephemeral
-				</span>
 			</div>
 			<p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
 				Only live requests authenticated with your personal API keys appear
