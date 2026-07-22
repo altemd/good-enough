@@ -24,6 +24,7 @@ export function createRuntimeOrchestrator() {
 			const mockPort = getServerPort(fakeBackend.server);
 			const applicationPort = await reservePort();
 			applicationOrigin = `http://${HOST}:${applicationPort}`;
+			const configuredApplicationOrigin = `https://${HOST}:${applicationPort}`;
 
 			application = spawn(process.execPath, [".output/server/index.mjs"], {
 				cwd: process.cwd(),
@@ -32,7 +33,7 @@ export function createRuntimeOrchestrator() {
 					HOST,
 					ACCOUNT_BOOTSTRAP_TOKEN:
 						"runtime-bootstrap-token-that-is-at-least-32-bytes",
-					APP_ORIGIN: applicationOrigin,
+					APP_ORIGIN: configuredApplicationOrigin,
 					GOOD_ENOUGH_DATABASE_PATH: databasePath,
 					LLAMA_SERVER_URL: `http://${HOST}:${mockPort}`,
 					PORT: String(applicationPort),

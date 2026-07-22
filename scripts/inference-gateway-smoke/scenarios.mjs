@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import {
+	BROWSER_SESSION_TOKEN,
 	DATABASE_API_KEY,
 	DATABASE_PRINCIPAL_ID,
 	DEMO_API_KEY,
@@ -43,7 +44,29 @@ export async function runGatewayScenarios(context) {
 		}),
 	);
 	assert.equal(readinessResponse.status, 401);
+	const unauthenticatedConsoleResponse = await fetch(
+		`${applicationOrigin}/api/live-console/events`,
+	);
+	assert.equal(unauthenticatedConsoleResponse.status, 401);
+	assert.equal(
+		unauthenticatedConsoleResponse.headers.get("cache-control"),
+		"no-store",
+	);
 	seedDatabaseKeys(databasePath);
+	const consoleResponse = await fetch(
+		`${applicationOrigin}/api/live-console/events?principalId=ignored`,
+		{
+			headers: { cookie: `__Host-ge_session=${BROWSER_SESSION_TOKEN}` },
+		},
+	);
+	assert.equal(consoleResponse.status, 200);
+	assert.equal(
+		consoleResponse.headers.get("content-type"),
+		"text/event-stream; charset=utf-8",
+	);
+	assert.equal(consoleResponse.headers.get("cache-control"), "no-store");
+	assert.ok(consoleResponse.body);
+	const consoleReader = consoleResponse.body.getReader();
 
 	const databaseModelsResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/models`, {
@@ -65,6 +88,19 @@ export async function runGatewayScenarios(context) {
 		object: "list",
 		data: [{ id: "smoke-model", object: "model" }],
 	});
+	const personalConsoleEvents = await readSseJsonEvents(consoleReader, 2);
+	assert.deepEqual(
+		personalConsoleEvents.map((event) => event.type),
+		["inference.request_started", "inference.terminal"],
+	);
+	for (const event of personalConsoleEvents) {
+		assert.equal(
+			event.requestId,
+			databaseModelsResponse.headers.get("x-request-id"),
+		);
+		assert.equal("principalId" in event, false);
+	}
+	await consoleReader.cancel("runtime personal console verified");
 	const databaseAnthropicResponse = recordResponse(
 		await fetch(`${applicationOrigin}/v1/messages`, {
 			headers: { "x-api-key": DATABASE_API_KEY },
@@ -318,6 +354,7 @@ export async function runGatewayScenarios(context) {
 		PRIVATE_UPSTREAM_ERROR,
 		DATABASE_PRINCIPAL_ID,
 		DATABASE_API_KEY,
+		BROWSER_SESSION_TOKEN,
 		DEMO_PRINCIPAL_ID,
 		DEMO_API_KEY,
 		EXPIRED_API_KEY,
@@ -333,6 +370,59 @@ export async function runGatewayScenarios(context) {
 	}
 
 	console.info("Inference gateway runtime smoke test passed.");
+}
+
+async function readSseJsonEvents(reader, expectedCount) {
+	const events = [];
+	const decoder = new TextDecoder();
+	let pending = "";
+	const deadline = Date.now() + 5_000;
+
+	while (events.length < expectedCount) {
+		if (Date.now() >= deadline) {
+			throw new Error("Timed out waiting for personal console events.");
+		}
+		const result = await readStreamWithTimeout(reader, 5_000);
+		assert.equal(result.done, false, "personal console stream closed early");
+		pending += decoder.decode(result.value, { stream: true });
+
+		while (true) {
+			const boundary = pending.indexOf("\n\n");
+			if (boundary < 0) {
+				break;
+			}
+			const frame = pending.slice(0, boundary);
+			pending = pending.slice(boundary + 2);
+			const data = frame
+				.split("\n")
+				.filter((line) => line.startsWith("data:"))
+				.map((line) => line.slice(5).trimStart())
+				.join("\n");
+			if (data.length > 0) {
+				events.push(JSON.parse(data));
+			}
+		}
+	}
+
+	return events;
+}
+
+async function readStreamWithTimeout(reader, timeoutMilliseconds) {
+	let timeout;
+	try {
+		return await Promise.race([
+			reader.read(),
+			new Promise((_, reject) => {
+				timeout = setTimeout(
+					() =>
+						reject(new Error("Timed out reading the personal console stream.")),
+					timeoutMilliseconds,
+				);
+			}),
+		]);
+	} finally {
+		clearTimeout(timeout);
+	}
 }
 
 async function cancelAfterContent(response, expectedContent) {

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 import {
+	BROWSER_SESSION_TOKEN,
 	DATABASE_API_KEY,
 	DATABASE_PRINCIPAL_ID,
 	DEMO_API_KEY,
@@ -73,6 +74,17 @@ export function seedDatabaseKeys(path) {
 		null,
 	);
 	insertRuntimeDemoToken(database, DEMO_API_KEY, now, now + 60_000);
+	database
+		.prepare(
+			"insert into sessions (id, user_id, token_digest, created_at, expires_at) values (?, ?, ?, ?, ?)",
+		)
+		.run(
+			"runtime-browser-session",
+			DATABASE_PRINCIPAL_ID,
+			createHash("sha256").update(BROWSER_SESSION_TOKEN).digest(),
+			now,
+			now + 60_000,
+		);
 	database.close();
 }
 
