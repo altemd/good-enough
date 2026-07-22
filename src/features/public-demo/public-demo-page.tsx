@@ -96,9 +96,9 @@ export function PublicDemoPage({
 							Are local models good enough?
 						</h1>
 						<p className="mt-5 max-w-lg text-lg leading-8 text-muted-foreground">
-							Good Enough is a personal project built to find out. It runs local
-							models on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo) and exposes
-							them through OpenAI- and Anthropic-compatible APIs.
+							Good Enough is a personal project built to help you find out. It
+							runs local models on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo)
+							and exposes them through OpenAI- and Anthropic-compatible APIs.
 						</p>
 						<p className="mt-4 max-w-lg leading-7 text-muted-foreground">
 							The button generates a free temporary API key that works for one

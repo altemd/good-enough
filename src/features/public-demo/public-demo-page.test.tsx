@@ -95,7 +95,7 @@ describe("public demo page", () => {
 		).toBeTruthy();
 		expect(screen.getByText("Personal project · Local inference")).toBeTruthy();
 		expect(
-			screen.getByText(/personal project built to find out/u),
+			screen.getByText(/personal project built to help you find out/u),
 		).toBeTruthy();
 		expect(
 			screen.getByText(/free temporary API key that works for one hour/u),
