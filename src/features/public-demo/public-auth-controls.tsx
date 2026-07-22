@@ -1,6 +1,6 @@
-import { Popover } from "@base-ui/react/popover";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, X } from "lucide-react";
+import { useId } from "react";
 
 import { buttonVariants } from "#/components/ui/button";
 import type { AccountEntryState } from "#/features/accounts/access/ui/access-page";
@@ -28,12 +28,6 @@ export function PublicAuthControls({
 		<>
 			<AuthPopover label="Sign in" title="Sign in to Good Enough">
 				<LoginForm />
-				<p className="mt-4 text-xs text-muted-foreground">
-					Prefer a full page?{" "}
-					<Link className="underline" to="/login">
-						Open sign in
-					</Link>
-				</p>
 			</AuthPopover>
 			<PublicRegistrationControl state={entryState} />
 		</>
@@ -50,12 +44,6 @@ export function PublicRegistrationControl({
 	return (
 		<AuthPopover label={label} title="Create a member account" outline>
 			<RegistrationForm state={state} />
-			<p className="mt-4 text-xs text-muted-foreground">
-				Prefer a full page?{" "}
-				<Link className="underline" to="/register">
-					Open registration
-				</Link>
-			</p>
 		</AuthPopover>
 	);
 }
@@ -71,31 +59,42 @@ function AuthPopover({
 	outline?: boolean;
 	children: React.ReactNode;
 }) {
+	const popoverId = useId();
+	const titleId = `${popoverId}-title`;
+
 	return (
-		<Popover.Root modal="trap-focus">
-			<Popover.Trigger
+		<>
+			<button
+				type="button"
 				className={buttonVariants({ variant: outline ? "outline" : "ghost" })}
+				popoverTarget={popoverId}
+				aria-haspopup="dialog"
 			>
 				{label}
-			</Popover.Trigger>
-			<Popover.Portal>
-				<Popover.Positioner align="end" sideOffset={8} className="z-50">
-					<Popover.Popup className="w-[min(23rem,calc(100vw-2rem))] origin-[var(--transform-origin)] rounded-2xl border bg-popover p-5 text-popover-foreground shadow-xl outline-none transition-[transform,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
-						<div className="mb-4 flex items-center gap-3">
-							<Popover.Title className="text-lg font-semibold">
-								{title}
-							</Popover.Title>
-							<Popover.Close
-								className="ml-auto flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
-								aria-label={`Close ${label.toLowerCase()}`}
-							>
-								<X className="size-4" />
-							</Popover.Close>
-						</div>
-						{children}
-					</Popover.Popup>
-				</Popover.Positioner>
-			</Popover.Portal>
-		</Popover.Root>
+			</button>
+			<div
+				id={popoverId}
+				popover="auto"
+				role="dialog"
+				aria-labelledby={titleId}
+				className="fixed inset-auto top-16 right-4 m-0 w-[min(23rem,calc(100vw-2rem))] rounded-2xl border bg-popover p-5 text-popover-foreground shadow-xl outline-none sm:right-8"
+			>
+				<div className="mb-4 flex items-center gap-3">
+					<h2 id={titleId} className="text-lg font-semibold">
+						{title}
+					</h2>
+					<button
+						type="button"
+						className="ml-auto flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
+						aria-label={`Close ${label.toLowerCase()}`}
+						popoverTarget={popoverId}
+						popoverTargetAction="hide"
+					>
+						<X className="size-4" />
+					</button>
+				</div>
+				{children}
+			</div>
+		</>
 	);
 }
