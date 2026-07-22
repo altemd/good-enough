@@ -123,12 +123,16 @@ while it contains the generated key.
 
 The onboarding copy distinguishes stored account/key lifecycle records from
 inference content and explains that personal request timing is delivered only
-while the live console is connected, with no replay after refresh.
+while the live console is connected, with no replay after refresh. Separate
+anonymous operations analytics retain only hourly rendered landing-view,
+demo-key, and demo-request outcome counts. They do not store unique-visitor
+identifiers, account or key linkage, request IDs, model choices, or inference
+content.
 
 Drizzle ORM owns the SQLite schema and committed migrations through Node's
 built-in `node:sqlite` driver. The database defaults to
-`./data/good-enough.sqlite` and stores account, session, and key lifecycle state
-only.
+`./data/good-enough.sqlite` and stores account, session, and key lifecycle
+state plus the anonymous hourly aggregate counters described above.
 
 ### Inference authentication
 

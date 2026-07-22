@@ -145,3 +145,25 @@ ephemeral cross-process transport before this behavior can be claimed there.
 Global hardware telemetry and all-user operational activity are a separate
 administrator concern, not part of the personal request console. Extending the
 page with those concerns requires a separate product and security checkpoint.
+
+The administrator-only anonymous analytics page is a separate aggregate
+facility, not an extension of this stream. It stores hourly counts for landing
+page views, demo credentials issued, and demo generation outcomes. These
+aggregate metrics are retained without an automatic deletion window. The
+facility never persists lifecycle events or any unique-visitor, account,
+API-key, request, model, or inference-content identifier. The personal event
+source remains process-local, ephemeral, and non-replayable.
+
+A landing view is counted only after the public landing component renders in a
+browser. Route preloads, loader revalidation, and requests that never render the
+component do not count as views. The public recording function accepts at most
+120 view increments per process per minute; excess calls still receive a normal
+response but do not change analytics.
+
+Public request paths enqueue only fixed metric names into a process-local
+recorder. The recorder coalesces at most 512 distinct hour/metric entries and
+flushes them in one SQLite transaction after five seconds. A failed flush keeps
+the bounded batch for retry; a full buffer drops new distinct entries instead
+of allocating without limit. The administrator summary forces a pending flush
+before reading. A demo generation is completed only when its final response is
+2xx; final 4xx responses are rejected and other non-2xx responses are failed.
