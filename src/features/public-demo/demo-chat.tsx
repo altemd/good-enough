@@ -1,9 +1,11 @@
-import { Bot, LoaderCircle, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "#/components/ui/button";
 import { DemoChatComposer } from "./demo-chat-composer";
-import { type DemoChatMessage, DemoChatMessageView } from "./demo-chat-message";
+import { DemoChatDeltaBuffer } from "./demo-chat-delta-buffer";
+import type { DemoChatMessage } from "./demo-chat-message";
+import { DemoChatTranscript } from "./demo-chat-transcript";
 import {
 	type DemoChatDelta,
 	DemoChatError,
@@ -20,6 +22,7 @@ export function DemoChat({ apiKey }: { apiKey: string }) {
 	const [prompt, setPrompt] = useState("");
 	const [requestError, setRequestError] = useState<string | null>(null);
 	const [isStreaming, setIsStreaming] = useState(false);
+	const [forceScrollKey, setForceScrollKey] = useState(0);
 	const abortController = useRef<AbortController | null>(null);
 	const nextMessageId = useRef(1);
 
@@ -79,8 +82,12 @@ export function DemoChat({ apiKey }: { apiKey: string }) {
 		setPrompt("");
 		setRequestError(null);
 		setIsStreaming(true);
+		setForceScrollKey((value) => value + 1);
 		const controller = new AbortController();
 		abortController.current = controller;
+		const deltaBuffer = new DemoChatDeltaBuffer((delta) =>
+			appendDelta(assistantId, delta),
+		);
 
 		try {
 			await streamDemoChat({
@@ -88,10 +95,12 @@ export function DemoChat({ apiKey }: { apiKey: string }) {
 				model,
 				messages: requestMessages,
 				signal: controller.signal,
-				onDelta: (delta) => appendDelta(assistantId, delta),
+				onDelta: (delta) => deltaBuffer.enqueue(delta),
 			});
+			deltaBuffer.flush();
 			setAssistantStatus(assistantId, "complete");
 		} catch (error) {
+			deltaBuffer.flush();
 			if (controller.signal.aborted) {
 				setAssistantStatus(assistantId, "stopped");
 			} else {
@@ -123,6 +132,7 @@ export function DemoChat({ apiKey }: { apiKey: string }) {
 		setMessages([]);
 		setPrompt("");
 		setRequestError(null);
+		setForceScrollKey((value) => value + 1);
 	}
 
 	function setAssistantStatus(
@@ -184,44 +194,13 @@ export function DemoChat({ apiKey }: { apiKey: string }) {
 					</div>
 				</header>
 
-				<div
-					className="min-h-96 space-y-5 bg-muted/20 p-5 sm:p-7"
-					aria-live="polite"
-				>
-					{models.length === 0 && !modelError ? (
-						<EmptyState
-							icon={<LoaderCircle className="animate-spin" />}
-							title="Finding the local model"
-							body="Model discovery does not consume generation capacity."
-						/>
-					) : null}
-					{modelError ? (
-						<EmptyState
-							icon={<RotateCcw />}
-							title="Chat is unavailable"
-							body={modelError}
-							action={
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => setModelAttempt((value) => value + 1)}
-								>
-									Try model discovery again
-								</Button>
-							}
-						/>
-					) : null}
-					{models.length > 0 && messages.length === 0 ? (
-						<EmptyState
-							icon={<Bot />}
-							title="Ask the local model"
-							body="Responses stream into this page and are not saved by the service."
-						/>
-					) : null}
-					{messages.map((message) => (
-						<DemoChatMessageView key={message.id} message={message} />
-					))}
-				</div>
+				<DemoChatTranscript
+					modelsReady={models.length > 0}
+					modelError={modelError}
+					messages={messages}
+					forceScrollKey={forceScrollKey}
+					onRetryModelDiscovery={() => setModelAttempt((value) => value + 1)}
+				/>
 
 				<DemoChatComposer
 					prompt={prompt}
@@ -234,31 +213,6 @@ export function DemoChat({ apiKey }: { apiKey: string }) {
 				/>
 			</div>
 		</section>
-	);
-}
-
-function EmptyState({
-	icon,
-	title,
-	body,
-	action,
-}: {
-	icon: React.ReactNode;
-	title: string;
-	body: string;
-	action?: React.ReactNode;
-}) {
-	return (
-		<div className="flex min-h-80 flex-col items-center justify-center text-center">
-			<span className="flex size-11 items-center justify-center rounded-2xl border bg-background text-muted-foreground [&_svg]:size-5">
-				{icon}
-			</span>
-			<p className="mt-4 font-medium">{title}</p>
-			<p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-				{body}
-			</p>
-			{action ? <div className="mt-4">{action}</div> : null}
-		</div>
 	);
 }
 
