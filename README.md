@@ -547,6 +547,11 @@ The first AMD-machine checkout should follow the
 [pilot host setup guide](docs/operations/amd-pilot-host-setup.md) instead of
 treating this generic Nitro command as a complete production procedure.
 
+That host installs the tracked user-level systemd units with
+`pnpm prod:amd:install` and starts the enabled target with
+`pnpm prod:amd:start`. The installer refuses an HTTP production origin, a
+retained bootstrap token, an insecure `.env`, or a missing production build.
+
 For host-specific presets (Vercel, Netlify, Cloudflare, AWS Lambda, etc.) and tuning, see https://v3.nitro.build/deploy.
 
 

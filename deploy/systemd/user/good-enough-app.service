@@ -1,0 +1,35 @@
+[Unit]
+Description=Good Enough production application
+Wants=good-enough-llama.service
+After=network-online.target good-enough-llama.service
+PartOf=good-enough.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Projects/good-enough
+EnvironmentFile=%h/Projects/good-enough/.env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+ExecStartPre=/usr/bin/bash %h/Projects/good-enough/scripts/check-amd-production.sh
+ExecStart=%h/.local/node-v24.18.0/bin/node %h/Projects/good-enough/.output/server/index.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+MemoryHigh=1536M
+MemoryMax=2G
+MemorySwapMax=512M
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=%h/Projects/good-enough/data
+RestrictSUIDSGID=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=good-enough-app

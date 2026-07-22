@@ -1,0 +1,8 @@
+[Unit]
+Description=Good Enough production services
+Wants=good-enough-llama.service good-enough-app.service
+After=network-online.target
+
+[Install]
+WantedBy=default.target
+

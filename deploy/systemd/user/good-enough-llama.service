@@ -1,0 +1,22 @@
+[Unit]
+Description=Good Enough llama-server router
+After=network-online.target
+PartOf=good-enough.target
+StartLimitIntervalSec=120
+StartLimitBurst=2
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/bridge
+ExecStartPre=/usr/bin/test -r /mnt/bridge/models/config.ini
+ExecStart=/usr/bin/toolbox run --container llama-rocm-7.2.4 llama-server -fa on --no-mmap --host 127.0.0.1 --port 8080 --models-preset models/config.ini --models-max 1 --models-autoload -cram 0 --spec-default --no-ui --log-colors off --log-timestamps
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=60
+KillMode=control-group
+OOMPolicy=stop
+Delegate=yes
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=good-enough-llama
+

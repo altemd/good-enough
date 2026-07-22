@@ -11,6 +11,11 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "dev:amd": "bash scripts/start-amd-dev.sh",
+    "prod:amd:check": "bash scripts/check-amd-production.sh",
+    "prod:amd:install": "bash scripts/install-amd-production-services.sh",
+    "prod:amd:start": "systemctl --user start good-enough.target",
+    "prod:amd:status": "systemctl --user status good-enough-app.service good-enough-llama.service",
+    "prod:amd:stop": "systemctl --user stop good-enough.target",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "account:reset-admin": "node scripts/reset-admin-password.mjs",
