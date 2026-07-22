@@ -21,6 +21,7 @@ import { Route as V1ModelsRouteImport } from './routes/v1/models'
 import { Route as AuthenticatedAccountApiKeysRouteImport } from './routes/_authenticated/account.api-keys'
 import { Route as AuthenticatedAccountSecurityRouteImport } from './routes/_authenticated/account.security'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as ApiLiveConsoleEventsRouteImport } from './routes/api/live-console/events'
 import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completions'
 
 const IndexRoute = IndexRouteImport.update({
@@ -84,6 +85,11 @@ const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiLiveConsoleEventsRoute = ApiLiveConsoleEventsRouteImport.update({
+  id: '/api/live-console/events',
+  path: '/api/live-console/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V1ChatCompletionsRoute = V1ChatCompletionsRouteImport.update({
   id: '/v1/chat/completions',
   path: '/v1/chat/completions',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
   '/account/security': typeof AuthenticatedAccountSecurityRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRoutesByTo {
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
   '/account/security': typeof AuthenticatedAccountSecurityRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRoutesById {
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/_authenticated/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
   '/_authenticated/account/security': typeof AuthenticatedAccountSecurityRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRouteTypes {
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/account/api-keys'
     | '/account/security'
     | '/admin/users'
+    | '/api/live-console/events'
     | '/v1/chat/completions'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/account/api-keys'
     | '/account/security'
     | '/admin/users'
+    | '/api/live-console/events'
     | '/v1/chat/completions'
   id:
     | '__root__'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/_authenticated/account/api-keys'
     | '/_authenticated/account/security'
     | '/_authenticated/admin/users'
+    | '/api/live-console/events'
     | '/v1/chat/completions'
   fileRoutesById: FileRoutesById
 }
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   V1SplatRoute: typeof V1SplatRoute
   V1MessagesRoute: typeof V1MessagesRoute
   V1ModelsRoute: typeof V1ModelsRoute
+  ApiLiveConsoleEventsRoute: typeof ApiLiveConsoleEventsRoute
   V1ChatCompletionsRoute: typeof V1ChatCompletionsRoute
 }
 
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/live-console/events': {
+      id: '/api/live-console/events'
+      path: '/api/live-console/events'
+      fullPath: '/api/live-console/events'
+      preLoaderRoute: typeof ApiLiveConsoleEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v1/chat/completions': {
       id: '/v1/chat/completions'
       path: '/v1/chat/completions'
@@ -324,6 +344,7 @@ const rootRouteChildren: RootRouteChildren = {
   V1SplatRoute: V1SplatRoute,
   V1MessagesRoute: V1MessagesRoute,
   V1ModelsRoute: V1ModelsRoute,
+  ApiLiveConsoleEventsRoute: ApiLiveConsoleEventsRoute,
   V1ChatCompletionsRoute: V1ChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport
