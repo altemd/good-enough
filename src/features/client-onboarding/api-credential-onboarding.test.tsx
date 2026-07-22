@@ -58,6 +58,18 @@ describe("API credential onboarding", () => {
 		expect(screen.getByText("~/.config/opencode/opencode.json")).toBeTruthy();
 		expect(screen.getByText("opencode.json")).toBeTruthy();
 		expect(storageWrite).not.toHaveBeenCalled();
+		const copyKey = screen.getByRole("button", {
+			name: "Copy temporary API key",
+		});
+		expect(copyKey.textContent).toBe("");
+		expect(copyKey.getAttribute("title")).toBe("Copy");
+		fireEvent.click(copyKey);
+		await waitFor(() => expect(writeText).toHaveBeenCalledWith(API_KEY));
+		expect(
+			screen
+				.getByRole("button", { name: "Temporary API key copied" })
+				.getAttribute("title"),
+		).toBe("Copied");
 
 		const config = await screen.findByLabelText("OpenCode configuration");
 		const copyConfig = screen.getByRole("button", {
@@ -66,13 +78,13 @@ describe("API credential onboarding", () => {
 		expect(copyConfig.textContent).toBe("");
 		expect(copyConfig.getAttribute("title")).toBe("Copy");
 		fireEvent.click(copyConfig);
-		await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+		await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
 		expect(
 			screen
 				.getByRole("button", { name: "OpenCode configuration copied" })
 				.getAttribute("title"),
 		).toBe("Copied");
-		const copiedConfig = JSON.parse(String(writeText.mock.calls[0]?.[0]));
+		const copiedConfig = JSON.parse(String(writeText.mock.calls[1]?.[0]));
 		expect(copiedConfig.provider["good-enough"].options).toEqual({
 			baseURL: new URL("/v1", window.location.origin).href,
 			apiKey: API_KEY,

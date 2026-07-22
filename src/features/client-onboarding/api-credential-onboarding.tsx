@@ -77,16 +77,28 @@ export function ApiCredentialOnboarding({
 			<p className="mt-1 text-sm leading-6 text-amber-950/80">
 				Copy it before dismissing this panel. It cannot be shown again.
 			</p>
-			<code className="my-3 block break-all rounded-xl border border-amber-200 bg-white/80 p-3 text-sm">
-				{apiKey}
-			</code>
-			<button
-				type="button"
-				className="text-sm underline"
-				onClick={() => void copy(apiKey, setKeyCopyState)}
-			>
-				{copyLabel("Copy key", keyCopyState)}
-			</button>
+			<div className="relative my-3">
+				<code className="block break-all rounded-xl border border-amber-200 bg-white/80 p-3 pr-14 text-sm">
+					{apiKey}
+				</code>
+				<button
+					type="button"
+					className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-950/70 shadow-sm transition-colors hover:bg-amber-100 hover:text-amber-950 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
+					aria-label={
+						keyCopyState === "copied"
+							? "Temporary API key copied"
+							: "Copy temporary API key"
+					}
+					title={keyCopyState === "copied" ? "Copied" : "Copy"}
+					onClick={() => void copy(apiKey, setKeyCopyState)}
+				>
+					{keyCopyState === "copied" ? (
+						<Check className="size-4" />
+					) : (
+						<Copy className="size-4" />
+					)}
+				</button>
+			</div>
 			{keyCopyState === "failed" ? (
 				<p role="alert" className="mt-2 text-red-700">
 					The key could not be copied. Select it manually.
@@ -179,12 +191,6 @@ export function ApiCredentialOnboarding({
 			</button>
 		</section>
 	);
-}
-
-function copyLabel(label: string, state: CopyState) {
-	if (state === "copied") return "Copied";
-	if (state === "failed") return "Copy failed";
-	return label;
 }
 
 function isAbortError(error: unknown) {
