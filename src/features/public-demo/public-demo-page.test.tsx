@@ -101,12 +101,16 @@ describe("public demo page", () => {
 			screen.getByText(/free temporary API key that works for one hour/u),
 		).toBeTruthy();
 		expect(screen.getByText(/No account or payment is required/u)).toBeTruthy();
-		expect(
-			screen.getByRole("heading", { name: "What gets stored?" }),
-		).toBeTruthy();
+		const privacyHeading = screen.getByRole("heading", {
+			name: "What gets stored?",
+		});
+		expect(privacyHeading).toBeTruthy();
 		expect(
 			screen.getByText(/does not persist inference content/u),
 		).toBeTruthy();
+		expect(privacyHeading.closest("section")?.textContent).toMatch(
+			/anonymous hourly counts of rendered landing views/iu,
+		);
 		expect(
 			screen.getByRole("heading", {
 				name: "Seven-day API keys and live request timing",

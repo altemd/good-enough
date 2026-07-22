@@ -40,7 +40,7 @@ describe("account persistence", () => {
 			context.database.sqlite
 				.prepare("select count(*) as count from __drizzle_migrations")
 				.get(),
-		).toEqual({ count: 2 });
+		).toEqual({ count: 3 });
 	});
 
 	it("rolls back a failed immediate account transaction", () => {

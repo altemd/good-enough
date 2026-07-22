@@ -1,0 +1,502 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "8fa0e2ae-5862-4aef-90f8-60595d61138d",
+  "prevIds": [
+    "cdb6551c-b136-4900-a21c-4c3e9d737c00"
+  ],
+  "ddl": [
+    {
+      "name": "api_keys",
+      "entityType": "tables"
+    },
+    {
+      "name": "sessions",
+      "entityType": "tables"
+    },
+    {
+      "name": "users",
+      "entityType": "tables"
+    },
+    {
+      "name": "anonymous_hourly_analytics",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "selector",
+      "entityType": "columns",
+      "table": "api_keys"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'personal'",
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "api_keys"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "api_keys"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "prefix",
+      "entityType": "columns",
+      "table": "api_keys"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "secret_digest",
+      "entityType": "columns",
+      "table": "api_keys"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "api_keys"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "api_keys"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "revoked_at",
+      "entityType": "columns",
+      "table": "api_keys"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "sessions"
+    },
+    {
+      "type": "blob",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token_digest",
+      "entityType": "columns",
+      "table": "sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "username",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "normalized_username",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "password_hash",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "role",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'active'",
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "must_change_password",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "temporary_password_expires_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "password_changed_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "bucket_started_at",
+      "entityType": "columns",
+      "table": "anonymous_hourly_analytics"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "metric",
+      "entityType": "columns",
+      "table": "anonymous_hourly_analytics"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "count",
+      "entityType": "columns",
+      "table": "anonymous_hourly_analytics"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_api_keys_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "api_keys"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_sessions_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "sessions"
+    },
+    {
+      "columns": [
+        "bucket_started_at",
+        "metric"
+      ],
+      "nameExplicit": false,
+      "name": "anonymous_hourly_analytics_pk",
+      "entityType": "pks",
+      "table": "anonymous_hourly_analytics"
+    },
+    {
+      "columns": [
+        "selector"
+      ],
+      "nameExplicit": false,
+      "name": "api_keys_pk",
+      "table": "api_keys",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "sessions_pk",
+      "table": "sessions",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "users_pk",
+      "table": "users",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "secret_digest",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "api_keys_secret_digest_unique",
+      "entityType": "indexes",
+      "table": "api_keys"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "expires_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "api_keys_user_expiry_index",
+      "entityType": "indexes",
+      "table": "api_keys"
+    },
+    {
+      "columns": [
+        {
+          "value": "kind",
+          "isExpression": false
+        },
+        {
+          "value": "expires_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "api_keys_kind_expiry_index",
+      "entityType": "indexes",
+      "table": "api_keys"
+    },
+    {
+      "columns": [
+        {
+          "value": "token_digest",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "sessions_token_digest_unique",
+      "entityType": "indexes",
+      "table": "sessions"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "expires_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "sessions_user_expiry_index",
+      "entityType": "indexes",
+      "table": "sessions"
+    },
+    {
+      "columns": [
+        {
+          "value": "normalized_username",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "users_normalized_username_unique",
+      "entityType": "indexes",
+      "table": "users"
+    },
+    {
+      "value": "\"kind\" in ('personal', 'demo')",
+      "name": "api_keys_kind_check",
+      "entityType": "checks",
+      "table": "api_keys"
+    },
+    {
+      "value": "(\"kind\" = 'personal' and \"user_id\" is not null) or (\"kind\" = 'demo' and \"user_id\" is null and \"revoked_at\" is null)",
+      "name": "api_keys_ownership_check",
+      "entityType": "checks",
+      "table": "api_keys"
+    },
+    {
+      "value": "\"expires_at\" > \"created_at\"",
+      "name": "api_keys_expiry_after_creation_check",
+      "entityType": "checks",
+      "table": "api_keys"
+    },
+    {
+      "value": "\"role\" in ('admin', 'member')",
+      "name": "users_role_check",
+      "entityType": "checks",
+      "table": "users"
+    },
+    {
+      "value": "\"status\" in ('active', 'disabled')",
+      "name": "users_status_check",
+      "entityType": "checks",
+      "table": "users"
+    },
+    {
+      "value": "\"metric\" in ('landing_page_loaded', 'demo_credential_issued', 'demo_inference_started', 'demo_inference_completed', 'demo_inference_rejected', 'demo_inference_failed', 'demo_inference_cancelled')",
+      "name": "anonymous_hourly_analytics_metric_check",
+      "entityType": "checks",
+      "table": "anonymous_hourly_analytics"
+    },
+    {
+      "value": "\"count\" >= 0",
+      "name": "anonymous_hourly_analytics_count_check",
+      "entityType": "checks",
+      "table": "anonymous_hourly_analytics"
+    }
+  ],
+  "renames": []
+}

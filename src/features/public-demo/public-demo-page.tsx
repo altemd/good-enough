@@ -232,6 +232,11 @@ function PrivacySummary() {
 					If you create an account, the server stores only the records needed
 					for the account, session, and API keys.
 				</li>
+				<li>
+					Anonymous hourly counts of rendered landing views, demo keys, and demo
+					request outcomes are retained as aggregate metrics. They contain no
+					identifiers or inference content.
+				</li>
 			</ul>
 		</section>
 	);

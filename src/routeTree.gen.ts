@@ -22,6 +22,7 @@ import { Route as AuthenticatedAccountIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedAccountApiKeysRouteImport } from './routes/_authenticated/account.api-keys'
 import { Route as AuthenticatedAccountLiveConsoleRouteImport } from './routes/_authenticated/account.live-console'
 import { Route as AuthenticatedAccountSecurityRouteImport } from './routes/_authenticated/account.security'
+import { Route as AuthenticatedAdminAnalyticsRouteImport } from './routes/_authenticated/admin.analytics'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as ApiLiveConsoleEventsRouteImport } from './routes/api/live-console/events'
 import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completions'
@@ -94,6 +95,12 @@ const AuthenticatedAccountSecurityRoute =
     path: '/security',
     getParentRoute: () => AuthenticatedAccountRoute,
   } as any)
+const AuthenticatedAdminAnalyticsRoute =
+  AuthenticatedAdminAnalyticsRouteImport.update({
+    id: '/admin/analytics',
+    path: '/admin/analytics',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -122,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
   '/account/live-console': typeof AuthenticatedAccountLiveConsoleRoute
   '/account/security': typeof AuthenticatedAccountSecurityRoute
+  '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
@@ -138,6 +146,7 @@ export interface FileRoutesByTo {
   '/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
   '/account/live-console': typeof AuthenticatedAccountLiveConsoleRoute
   '/account/security': typeof AuthenticatedAccountSecurityRoute
+  '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
@@ -157,6 +166,7 @@ export interface FileRoutesById {
   '/_authenticated/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
   '/_authenticated/account/live-console': typeof AuthenticatedAccountLiveConsoleRoute
   '/_authenticated/account/security': typeof AuthenticatedAccountSecurityRoute
+  '/_authenticated/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/account/api-keys'
     | '/account/live-console'
     | '/account/security'
+    | '/admin/analytics'
     | '/admin/users'
     | '/api/live-console/events'
     | '/v1/chat/completions'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/account/api-keys'
     | '/account/live-console'
     | '/account/security'
+    | '/admin/analytics'
     | '/admin/users'
     | '/api/live-console/events'
     | '/v1/chat/completions'
@@ -210,6 +222,7 @@ export interface FileRouteTypes {
     | '/_authenticated/account/api-keys'
     | '/_authenticated/account/live-console'
     | '/_authenticated/account/security'
+    | '/_authenticated/admin/analytics'
     | '/_authenticated/admin/users'
     | '/api/live-console/events'
     | '/v1/chat/completions'
@@ -322,6 +335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountSecurityRouteImport
       parentRoute: typeof AuthenticatedAccountRoute
     }
+    '/_authenticated/admin/analytics': {
+      id: '/_authenticated/admin/analytics'
+      path: '/admin/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AuthenticatedAdminAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/users': {
       id: '/_authenticated/admin/users'
       path: '/admin/users'
@@ -365,11 +385,13 @@ const AuthenticatedAccountRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRouteWithChildren
+  AuthenticatedAdminAnalyticsRoute: typeof AuthenticatedAdminAnalyticsRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRouteWithChildren,
+  AuthenticatedAdminAnalyticsRoute: AuthenticatedAdminAnalyticsRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
 }
 

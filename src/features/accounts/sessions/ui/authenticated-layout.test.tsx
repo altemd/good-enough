@@ -42,6 +42,34 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("authenticated account layout", () => {
+	it("shows anonymous analytics only to administrators", () => {
+		const { rerender } = render(
+			<AuthenticatedLayout
+				account={{
+					id: "account-id",
+					username: "member",
+					role: "member",
+					mustChangePassword: false,
+				}}
+			/>,
+		);
+		expect(screen.queryByRole("link", { name: "Analytics" })).toBeNull();
+
+		rerender(
+			<AuthenticatedLayout
+				account={{
+					id: "administrator-id",
+					username: "owner",
+					role: "admin",
+					mustChangePassword: false,
+				}}
+			/>,
+		);
+		expect(
+			screen.getByRole("link", { name: "Analytics" }).getAttribute("href"),
+		).toBe("/admin/analytics");
+	});
+
 	it("returns to the home page after signing out", async () => {
 		render(
 			<AuthenticatedLayout

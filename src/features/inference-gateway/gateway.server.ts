@@ -1,6 +1,7 @@
 import "@tanstack/react-start/server-only";
 
 import { liveInferenceEventSource } from "#/features/live-inference-console/live-event-source.server";
+import { observeDemoInferenceAnalytics } from "#/features/operations-analytics/demo-inference-analytics.server";
 import {
 	createGenerationAdmissionController,
 	readGenerationAdmissionConfig,
@@ -12,8 +13,10 @@ import { type GatewayEndpoint, handleGatewayRequest } from "./proxy-stream";
 const admissionComposition = createAdmissionComposition();
 const createLifecycleObserver: GatewayLifecycleObserverFactory =
 	({ principalId }) =>
-	(event) =>
+	(event) => {
 		liveInferenceEventSource.publishToPrincipal(principalId, event);
+		observeDemoInferenceAnalytics(principalId, event);
+	};
 
 const MODELS_ENDPOINT = {
 	kind: "discovery",

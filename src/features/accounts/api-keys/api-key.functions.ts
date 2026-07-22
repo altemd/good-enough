@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { enqueueAnonymousAnalyticsMetric } from "#/features/operations-analytics/anonymous-analytics-recorder.server";
 import {
 	requireString,
 	validateEmptyInput,
@@ -42,7 +43,15 @@ export const revokePersonalApiKey = createServerFn({ method: "POST" })
 
 export const createDemoApiToken = createServerFn({ method: "POST" })
 	.validator(validateEmptyInput)
-	.handler(async () => runDisplayOnceSecretMutation(() => issueDemoApiToken()));
+	.handler(async () => {
+		const result = await runDisplayOnceSecretMutation(() =>
+			issueDemoApiToken(),
+		);
+		if (result.ok) {
+			enqueueAnonymousAnalyticsMetric("demo_credential_issued");
+		}
+		return result;
+	});
 
 function validateRevokeKeyInput(value: unknown): RevokeKeyInput {
 	return validateExactObject(value, ["prefix"], (object) => ({

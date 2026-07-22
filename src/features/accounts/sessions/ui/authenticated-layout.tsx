@@ -19,7 +19,10 @@ export function AuthenticatedLayout({ account }: { account: CurrentAccount }) {
 					<Link to="/account/api-keys">API keys</Link>
 					<Link to="/account/security">Security</Link>
 					{account.role === "admin" ? (
-						<Link to="/admin/users">Users</Link>
+						<>
+							<Link to="/admin/analytics">Analytics</Link>
+							<Link to="/admin/users">Users</Link>
+						</>
 					) : null}
 					<span className="ml-auto">{account.username}</span>
 					<button
