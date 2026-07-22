@@ -19,6 +19,7 @@ import { Route as V1SplatRouteImport } from './routes/v1/$'
 import { Route as V1MessagesRouteImport } from './routes/v1/messages'
 import { Route as V1ModelsRouteImport } from './routes/v1/models'
 import { Route as AuthenticatedAccountApiKeysRouteImport } from './routes/_authenticated/account.api-keys'
+import { Route as AuthenticatedAccountLiveConsoleRouteImport } from './routes/_authenticated/account.live-console'
 import { Route as AuthenticatedAccountSecurityRouteImport } from './routes/_authenticated/account.security'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as ApiLiveConsoleEventsRouteImport } from './routes/api/live-console/events'
@@ -74,6 +75,12 @@ const AuthenticatedAccountApiKeysRoute =
     path: '/api-keys',
     getParentRoute: () => AuthenticatedAccountRoute,
   } as any)
+const AuthenticatedAccountLiveConsoleRoute =
+  AuthenticatedAccountLiveConsoleRouteImport.update({
+    id: '/live-console',
+    path: '/live-console',
+    getParentRoute: () => AuthenticatedAccountRoute,
+  } as any)
 const AuthenticatedAccountSecurityRoute =
   AuthenticatedAccountSecurityRouteImport.update({
     id: '/security',
@@ -106,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/v1/messages': typeof V1MessagesRoute
   '/v1/models': typeof V1ModelsRoute
   '/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
+  '/account/live-console': typeof AuthenticatedAccountLiveConsoleRoute
   '/account/security': typeof AuthenticatedAccountSecurityRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
@@ -121,6 +129,7 @@ export interface FileRoutesByTo {
   '/v1/messages': typeof V1MessagesRoute
   '/v1/models': typeof V1ModelsRoute
   '/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
+  '/account/live-console': typeof AuthenticatedAccountLiveConsoleRoute
   '/account/security': typeof AuthenticatedAccountSecurityRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
@@ -138,6 +147,7 @@ export interface FileRoutesById {
   '/v1/messages': typeof V1MessagesRoute
   '/v1/models': typeof V1ModelsRoute
   '/_authenticated/account/api-keys': typeof AuthenticatedAccountApiKeysRoute
+  '/_authenticated/account/live-console': typeof AuthenticatedAccountLiveConsoleRoute
   '/_authenticated/account/security': typeof AuthenticatedAccountSecurityRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/api/live-console/events': typeof ApiLiveConsoleEventsRoute
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/v1/messages'
     | '/v1/models'
     | '/account/api-keys'
+    | '/account/live-console'
     | '/account/security'
     | '/admin/users'
     | '/api/live-console/events'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/v1/messages'
     | '/v1/models'
     | '/account/api-keys'
+    | '/account/live-console'
     | '/account/security'
     | '/admin/users'
     | '/api/live-console/events'
@@ -186,6 +198,7 @@ export interface FileRouteTypes {
     | '/v1/messages'
     | '/v1/models'
     | '/_authenticated/account/api-keys'
+    | '/_authenticated/account/live-console'
     | '/_authenticated/account/security'
     | '/_authenticated/admin/users'
     | '/api/live-console/events'
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountApiKeysRouteImport
       parentRoute: typeof AuthenticatedAccountRoute
     }
+    '/_authenticated/account/live-console': {
+      id: '/_authenticated/account/live-console'
+      path: '/live-console'
+      fullPath: '/account/live-console'
+      preLoaderRoute: typeof AuthenticatedAccountLiveConsoleRouteImport
+      parentRoute: typeof AuthenticatedAccountRoute
+    }
     '/_authenticated/account/security': {
       id: '/_authenticated/account/security'
       path: '/security'
@@ -310,11 +330,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAccountRouteChildren {
   AuthenticatedAccountApiKeysRoute: typeof AuthenticatedAccountApiKeysRoute
+  AuthenticatedAccountLiveConsoleRoute: typeof AuthenticatedAccountLiveConsoleRoute
   AuthenticatedAccountSecurityRoute: typeof AuthenticatedAccountSecurityRoute
 }
 
 const AuthenticatedAccountRouteChildren: AuthenticatedAccountRouteChildren = {
   AuthenticatedAccountApiKeysRoute: AuthenticatedAccountApiKeysRoute,
+  AuthenticatedAccountLiveConsoleRoute: AuthenticatedAccountLiveConsoleRoute,
   AuthenticatedAccountSecurityRoute: AuthenticatedAccountSecurityRoute,
 }
 

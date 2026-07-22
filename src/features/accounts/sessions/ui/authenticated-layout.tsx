@@ -15,6 +15,7 @@ export function AuthenticatedLayout({ account }: { account: CurrentAccount }) {
 					<Link className="font-bold" to="/account">
 						Good Enough
 					</Link>
+					<Link to="/account/live-console">Live console</Link>
 					<Link to="/account/api-keys">API keys</Link>
 					<Link to="/account/security">Security</Link>
 					{account.role === "admin" ? (
