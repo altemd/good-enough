@@ -60,8 +60,18 @@ describe("API credential onboarding", () => {
 		expect(storageWrite).not.toHaveBeenCalled();
 
 		const config = await screen.findByLabelText("OpenCode configuration");
-		fireEvent.click(screen.getByRole("button", { name: "Copy OpenCode JSON" }));
+		const copyConfig = screen.getByRole("button", {
+			name: "Copy OpenCode configuration",
+		});
+		expect(copyConfig.textContent).toBe("");
+		expect(copyConfig.getAttribute("title")).toBe("Copy");
+		fireEvent.click(copyConfig);
 		await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+		expect(
+			screen
+				.getByRole("button", { name: "OpenCode configuration copied" })
+				.getAttribute("title"),
+		).toBe("Copied");
 		const copiedConfig = JSON.parse(String(writeText.mock.calls[0]?.[0]));
 		expect(copiedConfig.provider["good-enough"].options).toEqual({
 			baseURL: new URL("/v1", window.location.origin).href,

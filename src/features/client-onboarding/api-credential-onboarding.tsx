@@ -1,3 +1,4 @@
+import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { discoverOpenAiModelIds } from "#/features/inference-gateway/openai-model-discovery";
@@ -134,18 +135,31 @@ export function ApiCredentialOnboarding({
 				) : null}
 				{configJson ? (
 					<>
-						<section aria-label="OpenCode configuration">
-							<pre className="mt-4 max-h-96 overflow-auto rounded bg-slate-950 p-4 text-sm text-slate-50">
+						<section
+							className="relative mt-4"
+							aria-label="OpenCode configuration"
+						>
+							<pre className="max-h-96 overflow-auto rounded bg-slate-950 p-4 pr-14 text-sm text-slate-50">
 								<code>{configJson}</code>
 							</pre>
+							<button
+								type="button"
+								className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-300 shadow-sm transition-colors hover:bg-slate-800 hover:text-white focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+								aria-label={
+									configCopyState === "copied"
+										? "OpenCode configuration copied"
+										: "Copy OpenCode configuration"
+								}
+								title={configCopyState === "copied" ? "Copied" : "Copy"}
+								onClick={() => void copy(configJson, setConfigCopyState)}
+							>
+								{configCopyState === "copied" ? (
+									<Check className="size-4" />
+								) : (
+									<Copy className="size-4" />
+								)}
+							</button>
 						</section>
-						<button
-							type="button"
-							className="mt-3 underline"
-							onClick={() => void copy(configJson, setConfigCopyState)}
-						>
-							{copyLabel("Copy OpenCode JSON", configCopyState)}
-						</button>
 						{configCopyState === "failed" ? (
 							<p role="alert" className="mt-2 text-red-700">
 								The JSON could not be copied. Select it manually.
