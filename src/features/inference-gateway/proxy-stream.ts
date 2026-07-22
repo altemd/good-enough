@@ -1,6 +1,10 @@
 import type { GenerationAdmissionController } from "./admission";
 import type { ApiProtocol } from "./api-protocol";
 import type { AuthenticationDecision } from "./auth.server";
+import type {
+	GatewayLifecycleObserverFactory,
+	GatewayRequestKind,
+} from "./lifecycle-events";
 import { createStreamMetadataObserver } from "./metadata";
 import {
 	createProtocolErrorResponse,
@@ -50,6 +54,7 @@ export interface GatewayDependencies {
 	now?: () => number;
 	wallClock?: () => Date;
 	createRequestId?: () => string;
+	createLifecycleObserver?: GatewayLifecycleObserverFactory;
 }
 
 export async function handleGatewayRequest(
@@ -58,11 +63,14 @@ export async function handleGatewayRequest(
 	dependencies: GatewayDependencies,
 ): Promise<Response> {
 	const now = dependencies.now ?? performance.now.bind(performance);
+	const requestKind = resolveRequestKind(request, endpoint);
 	const lifecycle = createGatewayRequestLifecycle({
 		endpoint: endpoint?.path ?? "/v1/*",
+		requestKind,
 		now,
 		wallClock: dependencies.wallClock ?? (() => new Date()),
 		createRequestId: dependencies.createRequestId,
+		readCapacitySnapshot: () => dependencies.admission.snapshot(),
 		record: dependencies.record,
 	});
 	const requestId = lifecycle.requestId;
@@ -77,7 +85,13 @@ export async function handleGatewayRequest(
 	lifecycle.setAuthenticationStatus(authentication.status);
 
 	if (authentication.status === "configuration_error") {
-		lifecycle.finalize("configuration_error", 500);
+		lifecycle.finalize(
+			{
+				outcome: "configuration_error",
+				stage: "authentication_configuration",
+			},
+			500,
+		);
 		return createProtocolErrorResponse({
 			protocol: apiProtocol,
 			status: 500,
@@ -88,8 +102,10 @@ export async function handleGatewayRequest(
 	}
 
 	if (authentication.status === "rejected") {
-		lifecycle.setRejectionReason("authentication_failed");
-		lifecycle.finalize("rejected", 401);
+		lifecycle.finalize(
+			{ outcome: "rejected", reason: "authentication_failed" },
+			401,
+		);
 		return createProtocolErrorResponse({
 			protocol: apiProtocol,
 			status: 401,
@@ -99,9 +115,15 @@ export async function handleGatewayRequest(
 		});
 	}
 
+	lifecycle.startObservation(
+		createLifecycleObserver(dependencies.createLifecycleObserver, {
+			principalId: authentication.principalId,
+		}),
+	);
+
 	const clientSignal = dependencies.clientSignal ?? request.signal;
 	if (clientSignal.aborted) {
-		lifecycle.finalize("cancelled", 499);
+		lifecycle.finalize({ outcome: "cancelled" }, 499);
 		return createProtocolErrorResponse({
 			protocol: apiProtocol,
 			status: 499,
@@ -115,8 +137,13 @@ export async function handleGatewayRequest(
 	if (endpoint === null || endpoint.method !== request.method) {
 		const allowedMethods = endpoint ? [endpoint.method] : [];
 		const status = endpoint ? 405 : 404;
-		lifecycle.setRejectionReason(endpoint ? "method_not_allowed" : "not_found");
-		lifecycle.finalize("rejected", status);
+		lifecycle.finalize(
+			{
+				outcome: "rejected",
+				reason: endpoint ? "method_not_allowed" : "not_found",
+			},
+			status,
+		);
 
 		return createProtocolErrorResponse({
 			protocol: apiProtocol,
@@ -137,7 +164,10 @@ export async function handleGatewayRequest(
 			dependencies.llamaServerUrl ?? DEFAULT_LLAMA_SERVER_URL,
 		);
 	} catch {
-		lifecycle.finalize("configuration_error", 500);
+		lifecycle.finalize(
+			{ outcome: "configuration_error", stage: "backend_configuration" },
+			500,
+		);
 		return createProtocolErrorResponse({
 			protocol: apiProtocol,
 			status: 500,
@@ -151,8 +181,10 @@ export async function handleGatewayRequest(
 		const decision = dependencies.admission.tryAcquire();
 		if (!decision.admitted) {
 			lifecycle.setAdmission("rejected", decision.snapshot);
-			lifecycle.setRejectionReason("capacity_exceeded");
-			lifecycle.finalize("rejected", 429);
+			lifecycle.finalize(
+				{ outcome: "rejected", reason: "capacity_exceeded" },
+				429,
+			);
 
 			return createProtocolErrorResponse({
 				protocol: apiProtocol,
@@ -194,7 +226,7 @@ export async function handleGatewayRequest(
 	} catch {
 		cleanupAbortListener();
 		if (abortController.signal.aborted) {
-			lifecycle.finalize("cancelled", 499);
+			lifecycle.finalize({ outcome: "cancelled" }, 499);
 			return createProtocolErrorResponse({
 				protocol: apiProtocol,
 				status: 499,
@@ -205,7 +237,7 @@ export async function handleGatewayRequest(
 			});
 		}
 
-		lifecycle.finalize("upstream_error", 502);
+		lifecycle.finalize({ outcome: "upstream_error", stage: "connection" }, 502);
 		return createProtocolErrorResponse({
 			protocol: apiProtocol,
 			status: 502,
@@ -233,7 +265,7 @@ export async function handleGatewayRequest(
 			});
 		} catch {
 			cleanupAbortListener();
-			lifecycle.finalize("cancelled", 499);
+			lifecycle.finalize({ outcome: "cancelled" }, 499);
 			return createProtocolErrorResponse({
 				protocol: endpoint.apiProtocol,
 				status: 499,
@@ -246,7 +278,7 @@ export async function handleGatewayRequest(
 
 		cleanupAbortListener();
 		if (abortController.signal.aborted) {
-			lifecycle.finalize("cancelled", 499);
+			lifecycle.finalize({ outcome: "cancelled" }, 499);
 			return createProtocolErrorResponse({
 				protocol: endpoint.apiProtocol,
 				status: 499,
@@ -258,7 +290,9 @@ export async function handleGatewayRequest(
 		}
 
 		lifecycle.finalize(
-			normalizedError.bodyReadFailed ? "upstream_error" : "completed",
+			normalizedError.bodyReadFailed
+				? { outcome: "upstream_error", stage: "error_body" }
+				: { outcome: "completed" },
 			upstreamResponse.status,
 		);
 		return normalizedError.response;
@@ -281,7 +315,7 @@ export async function handleGatewayRequest(
 
 	if (!upstreamResponse.body) {
 		cleanupAbortListener();
-		lifecycle.finalize("completed", upstreamResponse.status);
+		lifecycle.finalize({ outcome: "completed" }, upstreamResponse.status);
 		return new Response(null, {
 			status: upstreamResponse.status,
 			statusText: upstreamResponse.statusText,
@@ -301,9 +335,13 @@ export async function handleGatewayRequest(
 				const result = await reader.read();
 				if (result.done) {
 					metadataObserver.finish(lifecycle.elapsed());
+					const { ttftMs } = metadataObserver.snapshot();
+					if (ttftMs !== null) {
+						lifecycle.recordFirstOutput(ttftMs);
+					}
 					cleanupAbortListener();
 					lifecycle.finalize(
-						"completed",
+						{ outcome: "completed" },
 						upstreamResponse.status,
 						metadataObserver,
 					);
@@ -312,6 +350,10 @@ export async function handleGatewayRequest(
 				}
 
 				metadataObserver.observe(result.value, lifecycle.elapsed());
+				const { ttftMs } = metadataObserver.snapshot();
+				if (ttftMs !== null) {
+					lifecycle.recordFirstOutput(ttftMs);
+				}
 				controller.enqueue(result.value);
 			} catch (error) {
 				cleanupAbortListener();
@@ -320,7 +362,9 @@ export async function handleGatewayRequest(
 					abortController.abort();
 				}
 				lifecycle.finalize(
-					cancelled ? "cancelled" : "upstream_error",
+					cancelled
+						? { outcome: "cancelled" }
+						: { outcome: "upstream_error", stage: "stream_body" },
 					upstreamResponse.status,
 					metadataObserver,
 				);
@@ -341,7 +385,7 @@ export async function handleGatewayRequest(
 				await reader.cancel(reason);
 			} finally {
 				lifecycle.finalize(
-					"cancelled",
+					{ outcome: "cancelled" },
 					upstreamResponse.status,
 					metadataObserver,
 				);
@@ -354,4 +398,26 @@ export async function handleGatewayRequest(
 		statusText: upstreamResponse.statusText,
 		headers: responseHeaders,
 	});
+}
+
+function resolveRequestKind(
+	request: Request,
+	endpoint: GatewayEndpoint | null,
+): GatewayRequestKind {
+	if (endpoint === null || endpoint.method !== request.method) {
+		return "routing_rejection";
+	}
+
+	return endpoint.kind;
+}
+
+function createLifecycleObserver(
+	factory: GatewayLifecycleObserverFactory | undefined,
+	context: Parameters<GatewayLifecycleObserverFactory>[0],
+) {
+	try {
+		return factory?.(context);
+	} catch {
+		return undefined;
+	}
 }

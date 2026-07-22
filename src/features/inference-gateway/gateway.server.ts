@@ -1,14 +1,16 @@
 import "@tanstack/react-start/server-only";
 
+import { liveInferenceEventSource } from "#/features/live-inference-console/live-event-source.server";
 import { createGenerationAdmissionController } from "./admission";
 import { authenticateGatewayApiKey } from "./auth.server";
-import {
-	type GatewayEndpoint,
-	handleGatewayRequest,
-	type InferenceRequestMetadata,
-} from "./proxy-stream";
+import type { GatewayLifecycleObserverFactory } from "./lifecycle-events";
+import { type GatewayEndpoint, handleGatewayRequest } from "./proxy-stream";
 
 const generationAdmission = createGenerationAdmissionController();
+const createLifecycleObserver: GatewayLifecycleObserverFactory =
+	({ principalId }) =>
+	(event) =>
+		liveInferenceEventSource.publishToPrincipal(principalId, event);
 
 const MODELS_ENDPOINT = {
 	kind: "discovery",
@@ -63,10 +65,6 @@ function handleConfiguredGatewayRequest(
 		authenticate: (candidateRequest, apiProtocol) =>
 			authenticateGatewayApiKey(candidateRequest, apiProtocol),
 		llamaServerUrl: process.env.LLAMA_SERVER_URL,
-		record: recordInferenceMetadata,
+		createLifecycleObserver,
 	});
-}
-
-function recordInferenceMetadata(metadata: InferenceRequestMetadata) {
-	console.info(JSON.stringify(metadata));
 }

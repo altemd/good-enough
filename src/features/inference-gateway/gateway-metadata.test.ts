@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-
+import { liveInferenceEventSource } from "#/features/live-inference-console/live-event-source.server";
 import { handleOpenAiChatCompletionsRequest } from "./gateway.server";
 import {
 	createFetchMock,
@@ -12,6 +12,7 @@ import {
 	sse,
 	steppingClock,
 } from "./gateway.test-support";
+import type { GatewayLifecycleEvent } from "./lifecycle-events";
 
 installGatewayTestHooks();
 
@@ -221,7 +222,7 @@ describe("protocol metadata and privacy", () => {
 		expect(serializedMetadata).not.toContain(String(blockIndexSentinel));
 	});
 
-	it("emits metadata-only structured stdout from the server adapter", async () => {
+	it("publishes privacy-filtered events without per-request stdout", async () => {
 		vi.stubEnv("LLAMA_SERVER_URL", "http://127.0.0.1:8080");
 		const fetchMock = createFetchMock(async () =>
 			eventStream([
@@ -234,19 +235,40 @@ describe("protocol metadata and privacy", () => {
 		);
 		vi.stubGlobal("fetch", fetchMock.fetch);
 		const stdout = vi.spyOn(console, "info").mockImplementation(() => {});
-		const response = await handleOpenAiChatCompletionsRequest(
-			postRequest(
-				"chat/completions",
-				'{"messages":[{"content":"PRIVATE_STDOUT_PROMPT"}]}',
-			),
+		const events: GatewayLifecycleEvent[] = [];
+		const unsubscribe = liveInferenceEventSource.subscribe(
+			"test-account",
+			(event) => events.push(event),
 		);
+		let requestId: string | null = null;
+		try {
+			const response = await handleOpenAiChatCompletionsRequest(
+				postRequest(
+					"chat/completions",
+					'{"messages":[{"content":"PRIVATE_STDOUT_PROMPT"}]}',
+				),
+			);
 
-		await response.text();
+			requestId = response.headers.get("x-request-id");
+			await response.text();
+		} finally {
+			unsubscribe();
+		}
 
-		expect(stdout).toHaveBeenCalledTimes(1);
-		const output = String(stdout.mock.calls[0]?.[0]);
-		expect(() => JSON.parse(output)).not.toThrow();
+		expect(stdout).not.toHaveBeenCalled();
+		expect(events.map((event) => event.type)).toEqual([
+			"inference.request_started",
+			"inference.admission_decided",
+			"inference.first_output",
+			"inference.terminal",
+		]);
+		expect(requestId).not.toBeNull();
+		expect(new Set(events.map((event) => event.requestId))).toEqual(
+			new Set([requestId]),
+		);
+		const output = JSON.stringify(events);
 		expect(output).not.toContain("PRIVATE_STDOUT_PROMPT");
 		expect(output).not.toContain("PRIVATE_STDOUT_COMPLETION");
+		expect(output).not.toContain("test-account");
 	});
 });

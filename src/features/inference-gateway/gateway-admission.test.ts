@@ -187,7 +187,7 @@ describe("generation admission", () => {
 		expect(admission.snapshot().activeGenerations).toBe(0);
 	});
 
-	it("releases capacity before invoking a failing metadata recorder", async () => {
+	it("releases capacity even when the lifecycle observer fails", async () => {
 		const admission = createGenerationAdmissionController();
 		const response = await handleGatewayRequest(
 			postRequest("messages", "{}"),
@@ -195,8 +195,10 @@ describe("generation admission", () => {
 			{
 				admission,
 				fetch: createFetchMock(async () => new Response("done")).fetch,
-				record() {
-					throw new Error("recorder failed");
+				createLifecycleObserver() {
+					return () => {
+						throw new Error("observer failed");
+					};
 				},
 			},
 		);

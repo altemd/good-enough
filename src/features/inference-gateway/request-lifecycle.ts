@@ -1,29 +1,26 @@
 import type { AdmissionSnapshot, GenerationLease } from "./admission";
+import type {
+	GatewayAdmissionStatus,
+	GatewayAuthenticationStatus,
+	GatewayLifecycleEvent,
+	GatewayLifecycleObserver,
+	GatewayRejectionReason,
+	GatewayRequestKind,
+	GatewayTerminalResult,
+} from "./lifecycle-events";
 import {
 	createStreamMetadataObserver,
 	type StreamMetadata,
 	type StreamMetadataObserver,
 } from "./metadata";
 
-export type GatewayOutcome =
-	| "cancelled"
-	| "completed"
-	| "configuration_error"
-	| "rejected"
-	| "upstream_error";
+export type GatewayOutcome = GatewayTerminalResult["outcome"];
 
-export type GatewayRejectionReason =
-	| "authentication_failed"
-	| "capacity_exceeded"
-	| "method_not_allowed"
-	| "not_found";
-
-export type GatewayAdmissionStatus = "admitted" | "not_applicable" | "rejected";
-
-export type GatewayAuthenticationStatus =
-	| "authenticated"
-	| "configuration_error"
-	| "rejected";
+export type {
+	GatewayAdmissionStatus,
+	GatewayAuthenticationStatus,
+	GatewayRejectionReason,
+} from "./lifecycle-events";
 
 export interface InferenceRequestMetadata extends StreamMetadata {
 	event: "inference_request";
@@ -48,16 +45,17 @@ export type MetadataRecorder = (metadata: InferenceRequestMetadata) => void;
 export interface GatewayRequestLifecycle {
 	readonly requestId: string;
 	elapsed(): number;
+	recordFirstOutput(ttftMs: number): void;
 	setAuthenticationStatus(status: GatewayAuthenticationStatus): void;
-	setRejectionReason(reason: GatewayRejectionReason): void;
 	setAdmission(
 		status: GatewayAdmissionStatus,
 		snapshot: AdmissionSnapshot,
 		lease?: GenerationLease,
 	): void;
 	setUpstreamStatus(status: number): void;
+	startObservation(observer: GatewayLifecycleObserver | undefined): void;
 	finalize(
-		outcome: GatewayOutcome,
+		result: GatewayTerminalResult,
 		responseStatus: number,
 		metadataObserver?: StreamMetadataObserver,
 	): void;
@@ -65,9 +63,11 @@ export interface GatewayRequestLifecycle {
 
 export function createGatewayRequestLifecycle(options: {
 	endpoint: string;
+	requestKind: GatewayRequestKind;
 	now: () => number;
 	wallClock: () => Date;
 	createRequestId?: () => string;
+	readCapacitySnapshot?: () => AdmissionSnapshot;
 	record?: MetadataRecorder;
 }): GatewayRequestLifecycle {
 	const startedAtMs = options.now();
@@ -77,40 +77,83 @@ export function createGatewayRequestLifecycle(options: {
 	const emptyObserver = createStreamMetadataObserver("none");
 	let upstreamStatus: number | null = null;
 	let upstreamHeadersMs: number | null = null;
-	let rejectionReason: GatewayRejectionReason | null = null;
 	let authenticationStatus: GatewayAuthenticationStatus = "rejected";
 	let admissionStatus: GatewayAdmissionStatus = "not_applicable";
 	let admissionSnapshot: AdmissionSnapshot | null = null;
 	let generationLease: GenerationLease | null = null;
+	let lifecycleObserver: GatewayLifecycleObserver | null = null;
+	let firstOutputObserved = false;
 	let finalized = false;
 
 	const elapsed = () => elapsedMilliseconds(options.now, startedAtMs);
+	const observe = (createEvent: () => GatewayLifecycleEvent) => {
+		if (lifecycleObserver === null) {
+			return;
+		}
+		try {
+			lifecycleObserver(createEvent());
+		} catch {
+			// Observability must never interrupt the proxied response.
+		}
+	};
+	const eventBase = () => ({
+		requestId,
+		occurredAt: options.wallClock().toISOString(),
+		requestKind: options.requestKind,
+	});
 
 	return {
 		requestId,
 		elapsed,
+		recordFirstOutput(ttftMs) {
+			if (firstOutputObserved || finalized) {
+				return;
+			}
+			firstOutputObserved = true;
+			observe(() => ({
+				...eventBase(),
+				type: "inference.first_output",
+				ttftMs,
+			}));
+		},
 		setAuthenticationStatus(status) {
 			authenticationStatus = status;
-		},
-		setRejectionReason(reason) {
-			rejectionReason = reason;
 		},
 		setAdmission(status, snapshot, lease) {
 			admissionStatus = status;
 			admissionSnapshot = snapshot;
 			generationLease = lease ?? null;
+			if (status !== "not_applicable") {
+				observe(() => ({
+					...eventBase(),
+					type: "inference.admission_decided",
+					decision: status,
+					capacity: snapshot,
+				}));
+			}
 		},
 		setUpstreamStatus(status) {
 			upstreamStatus = status;
 			upstreamHeadersMs = elapsed();
 		},
-		finalize(outcome, responseStatus, metadataObserver = emptyObserver) {
+		startObservation(observer) {
+			if (observer === undefined || lifecycleObserver !== null || finalized) {
+				return;
+			}
+			lifecycleObserver = observer;
+			observe(() => ({
+				...eventBase(),
+				type: "inference.request_started",
+			}));
+		},
+		finalize(result, responseStatus, metadataObserver = emptyObserver) {
 			if (finalized) {
 				return;
 			}
 			finalized = true;
 			generationLease?.release();
 
+			const streamMetadata = metadataObserver.snapshot();
 			const metadata: InferenceRequestMetadata = {
 				event: "inference_request",
 				requestId,
@@ -118,8 +161,8 @@ export function createGatewayRequestLifecycle(options: {
 				startedAt,
 				responseStatus,
 				upstreamStatus,
-				outcome,
-				rejectionReason,
+				outcome: result.outcome,
+				rejectionReason: result.outcome === "rejected" ? result.reason : null,
 				authenticationStatus,
 				admissionStatus,
 				concurrencyLimit: admissionSnapshot?.concurrencyLimit ?? null,
@@ -129,8 +172,24 @@ export function createGatewayRequestLifecycle(options: {
 					admissionSnapshot?.queuedGenerations ?? null,
 				upstreamHeadersMs,
 				durationMs: elapsed(),
-				...metadataObserver.snapshot(),
+				...streamMetadata,
 			};
+
+			observe(() => ({
+				...eventBase(),
+				type: "inference.terminal",
+				result,
+				admissionStatus,
+				responseStatus,
+				upstreamStatus,
+				upstreamHeadersMs,
+				durationMs: metadata.durationMs,
+				capacity: readCurrentCapacity(
+					options.readCapacitySnapshot,
+					admissionSnapshot,
+				),
+				metrics: streamMetadata,
+			}));
 
 			try {
 				options.record?.(metadata);
@@ -139,6 +198,21 @@ export function createGatewayRequestLifecycle(options: {
 			}
 		},
 	};
+}
+
+function readCurrentCapacity(
+	readCapacitySnapshot: (() => AdmissionSnapshot) | undefined,
+	admissionSnapshot: AdmissionSnapshot | null,
+): AdmissionSnapshot | null {
+	if (admissionSnapshot === null) {
+		return null;
+	}
+
+	try {
+		return readCapacitySnapshot?.() ?? admissionSnapshot;
+	} catch {
+		return admissionSnapshot;
+	}
 }
 
 function elapsedMilliseconds(now: () => number, startedAtMs: number): number {

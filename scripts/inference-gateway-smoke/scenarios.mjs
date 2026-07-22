@@ -303,42 +303,12 @@ export async function runGatewayScenarios(context) {
 		"/v1/chat/completions",
 	]);
 
-	await waitFor(
-		() =>
-			readMetadataEvents(context.readApplicationStdout()).length ===
-			requestIds.length,
-	);
-	const metadataEvents = readMetadataEvents(context.readApplicationStdout());
-	assert.equal(metadataEvents.length, requestIds.length);
 	assert.equal(new Set(requestIds).size, requestIds.length);
-	for (const requestId of requestIds) {
-		assert.equal(
-			metadataEvents.filter((event) => event.requestId === requestId).length,
-			1,
-			`request ${requestId} must emit exactly one metadata event`,
-		);
-	}
-
-	const busyMetadata = metadataEvents.find(
-		(event) => event.rejectionReason === "capacity_exceeded",
+	assert.equal(
+		readMetadataEvents(context.readApplicationStdout()).length,
+		0,
+		"built server must not write per-request metadata to stdout",
 	);
-	assert.equal(busyMetadata?.responseStatus, 429);
-	assert.equal(busyMetadata?.upstreamStatus, null);
-	assert.equal(busyMetadata?.admissionStatus, "rejected");
-	assert.equal(busyMetadata?.concurrencyLimit, 1);
-	assert.equal(busyMetadata?.activeGenerationsAtAdmission, 1);
-	assert.equal(busyMetadata?.queuedGenerationsAtAdmission, 0);
-
-	const authenticationRejections = metadataEvents.filter(
-		(event) => event.rejectionReason === "authentication_failed",
-	);
-	assert.equal(authenticationRejections.length, 7);
-	for (const event of authenticationRejections) {
-		assert.equal(event.responseStatus, 401);
-		assert.equal(event.upstreamStatus, null);
-		assert.equal(event.authenticationStatus, "rejected");
-		assert.equal(event.admissionStatus, "not_applicable");
-	}
 
 	const allApplicationOutput = `${context.readApplicationStdout()}\n${context.readApplicationStderr()}`;
 	for (const sentinel of [
