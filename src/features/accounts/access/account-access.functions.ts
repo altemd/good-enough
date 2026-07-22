@@ -71,7 +71,15 @@ export const bootstrapAccount = createServerFn({ method: "POST" })
 
 export const registerAccount = createServerFn({ method: "POST" })
 	.validator(validateCredentialsInput)
-	.handler(async ({ data }) => runMutation(() => registerMember(data)));
+	.handler(async ({ data }) => {
+		return runBrowserSessionMutation(
+			() => {
+				readAppOrigin();
+				return registerMember(data);
+			},
+			() => ({}),
+		);
+	});
 
 export const loginAccount = createServerFn({ method: "POST" })
 	.validator(validateCredentialsInput)

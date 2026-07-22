@@ -8,6 +8,7 @@ import { readRegistrationEnabled } from "../config.server.ts";
 import { type AccountDatabase, getAccountDatabase } from "../db.server.ts";
 import { consumeRateLimit } from "../rate-limit.server.ts";
 import { users } from "../schema.ts";
+import { createBrowserSession } from "../sessions/sessions.server.ts";
 import { hashPassword, isValidPassword } from "./password.server.ts";
 import { normalizeUsername } from "./username-policy.ts";
 
@@ -15,7 +16,7 @@ export async function registerMember(
 	input: { username: string; password: string },
 	database: AccountDatabase = getAccountDatabase(),
 	now = Date.now(),
-): Promise<AccountMutationResult> {
+): Promise<AccountMutationResult<{ token: string; expiresAt: number }>> {
 	const globalLimit = consumeRateLimit(
 		"registration:global",
 		10,
@@ -74,10 +75,11 @@ export async function registerMember(
 				if (duplicate) {
 					return { ok: false, code: "username_unavailable" } as const;
 				}
+				const userId = randomUUID();
 				transaction
 					.insert(users)
 					.values({
-						id: randomUUID(),
+						id: userId,
 						...normalized,
 						passwordHash,
 						role: "member",
@@ -88,7 +90,12 @@ export async function registerMember(
 						passwordChangedAt: now,
 					})
 					.run();
-				return { ok: true, value: {} } as const;
+				return {
+					ok: true,
+					value: createBrowserSession(userId, false, now, {
+						db: transaction,
+					}),
+				} as const;
 			},
 			{ behavior: "immediate" },
 		);

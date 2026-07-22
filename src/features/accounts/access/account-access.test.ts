@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { readBrowserSession } from "../sessions/sessions.server.ts";
 import type { AccountTestContext } from "../testing/account-test-context.ts";
 import {
 	ADMIN_PASSWORD,
@@ -66,13 +66,17 @@ describe("account setup and registration", () => {
 			),
 		).toEqual({ ok: false, code: "setup_complete" });
 
+		const registration = await registerMember(
+			{ username: "Member", password: MEMBER_PASSWORD },
+			context.database,
+			3_000,
+		);
+		expect(registration.ok).toBe(true);
+		if (!registration.ok) return;
 		expect(
-			await registerMember(
-				{ username: "Member", password: MEMBER_PASSWORD },
-				context.database,
-				3_000,
-			),
-		).toEqual({ ok: true, value: {} });
+			readBrowserSession(registration.value.token, 3_001, context.database)
+				?.user,
+		).toMatchObject({ username: "Member", role: "member" });
 		expect(
 			await registerMember(
 				{ username: "member", password: MEMBER_PASSWORD },
@@ -107,5 +111,29 @@ describe("account setup and registration", () => {
 				70_000,
 			),
 		).toEqual({ ok: false, code: "configuration_error" });
+	}, 30_000);
+
+	it("rolls back the member when its initial browser session cannot be created", async () => {
+		await createTestAdministrator(context);
+		context.database.sqlite.exec(`
+			create trigger fail_registration_session
+			before insert on sessions
+			begin
+				select raise(ABORT, 'synthetic session storage failure');
+			end
+		`);
+
+		expect(
+			await registerMember(
+				{ username: "AtomicMember", password: MEMBER_PASSWORD },
+				context.database,
+				80_000,
+			),
+		).toEqual({ ok: false, code: "configuration_error" });
+		expect(
+			context.database.sqlite
+				.prepare("select count(*) as count from users where role = 'member'")
+				.get(),
+		).toEqual({ count: 0 });
 	}, 30_000);
 });
