@@ -147,9 +147,26 @@ complete value appears only in the creation result with copy and dismiss
 actions. It remains in React page memory rather than a URL, cookie, local
 storage, or session storage; refresh, navigation, or dismissal forgets it.
 
-The remaining demo UI checkpoint is to connect that in-memory token to the
-focused streaming chat UI without embedding a shared token in HTML or
-JavaScript and without logging or persisting prompts and responses.
+After issuance, the page uses the in-memory token to discover available models
+and exposes a focused OpenAI-compatible streaming chat. The browser sends the
+token only in the same-origin `Authorization` header. It incrementally renders
+text and optional reasoning, supports cancellation, and maps authentication,
+capacity, connection, and protocol failures to fixed messages without showing
+upstream error bodies. Tool-call arguments are not rendered by this focused
+chat.
+
+The chat retains the complete page-lifetime conversation in React memory,
+including assistant reasoning needed by compatible model templates. Each
+assistant turn sends its `reasoning_content` back with later requests so the
+conversation remains append-only and eligible for prefix-cache reuse. New user
+prompts are limited to 4,000 characters, but the browser does not impose its own
+message-count or conversation-size limit; llama-server remains authoritative
+for the model context window. A visible new-conversation action, refresh,
+navigation, or dismissing the token clears the chat. It does not use cookies,
+URLs, local storage, session storage, or an application persistence endpoint
+for the token or conversation. The service's normal content-free operational
+metadata still applies; prompts and responses remain absent from application
+stdout.
 
 Without email, CAPTCHA, a durable device identity, or retained IP addresses,
 the service cannot honestly enforce “one demo per person”; another explicit
