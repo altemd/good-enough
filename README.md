@@ -33,12 +33,16 @@ llama-server \
 Good Enough requires Node 24 or newer. Copy `.env.example` to `.env` and replace
 the synthetic bootstrap token. Do not commit the resulting `.env` file or real
 credentials.
-The gateway writes one structured metadata event per request to stdout. It does
-not log prompt, completion, tool-argument, credential, principal, or raw
-streaming data. Numeric metadata is extracted only from explicitly allowlisted
-protocol fields. If external infrastructure captures stdout, those events are
-retained operational telemetry and may be correlated with separate ingress
-logs; this application does not currently impose a log-retention period.
+
+After personal API-key authentication succeeds, the gateway publishes typed,
+privacy-filtered lifecycle events to a process-local source for that key's
+owning account. The account ID is used only in memory to choose the recipient;
+it is never included in an event or log. Events reuse the gateway request ID so
+the owner can match console activity to an HTTP response. The source keeps no
+history and immediately discards events when that account has no subscriber.
+It has no browser transport yet, and the application does not write per-request
+inference metadata to stdout. Numeric metrics come only from explicitly
+allowlisted protocol fields.
 
 ### Accounts and personal API keys
 
@@ -96,8 +100,9 @@ streaming, and generation admission. Missing, malformed, and unknown
 credentials receive the same generic `401`. OpenAI errors use
 `invalid_request_error` with code `invalid_api_key`; Anthropic errors use
 `authentication_error` with `request_id` and a `request-id` header. Credentials
-are stripped before llama-server, and neither credentials nor principal IDs are
-written to metadata.
+are stripped before llama-server. Credentials and principal IDs are never
+written to live-event payloads; the principal ID is only the in-memory delivery
+address for an authenticated account's personal event stream.
 
 A database or migration failure returns a sanitized `500`.
 
@@ -105,7 +110,9 @@ A database or migration failure returns a sanitized `500`.
 
 Good Enough uses **zero inference-content retention**: it does not persist
 prompts, responses, reasoning, tool arguments, request bodies, or per-user
-inference activity. It does persist account records, password hashes, browser
+inference activity. It temporarily connects a live authenticated request to its
+owning account in memory so only that account can receive its status events.
+It does persist account records, password hashes, browser
 sessions, API-key digests, prefixes, lifecycle dates, and revocation state. It
 does not persist per-user request counts, token totals, model activity, TTFT,
 throughput, usage dates, or key last-use timestamps. Clients may consume usage
@@ -169,8 +176,8 @@ for the model context window. A visible new-conversation action, refresh,
 navigation, or dismissing the token clears the chat. It does not use cookies,
 URLs, local storage, session storage, or an application persistence endpoint
 for the token or conversation. The service's normal content-free operational
-metadata still applies; prompts and responses remain absent from application
-stdout.
+live-event filtering still applies; prompts and responses remain absent from
+application stdout.
 
 Without email, CAPTCHA, a durable device identity, or retained IP addresses,
 the service cannot honestly enforce “one demo per person”; another explicit
@@ -209,8 +216,8 @@ promise that multiple pieces of work from one user can wait in parallel.
 Revalidate the retry and stream-consumption assumptions whenever the pinned
 OpenCode or AI SDK version changes.
 
-Structured metadata distinguishes the status returned by the gateway from a
-status received from llama-server:
+Privacy-filtered terminal events distinguish the status returned by the gateway
+from a status received from llama-server:
 
 - `responseStatus` is the HTTP status produced by the gateway.
 - `upstreamStatus` is the llama-server status, or `null` if no upstream
@@ -236,8 +243,10 @@ Gateway-originated errors use the protocol bound to the public endpoint:
 - `/v1/messages` uses Anthropic's top-level `type: "error"` envelope, nested
   error object, `request_id`, and `request-id` response header.
 - The gateway-owned ID is consistent across each protocol's response header,
-  Anthropic error bodies, upstream forwarding, and metadata. OpenAI responses
-  use `x-request-id`; Anthropic responses use `request-id`.
+  Anthropic error bodies, upstream forwarding, and the owning account's live
+  events. OpenAI responses use `x-request-id`; Anthropic responses use
+  `request-id`. Reusing that ID lets the owner match an HTTP response to a live
+  console line without adding another identifier.
 
 Upstream error statuses, status text, and meaningful end-to-end headers remain
 intact. Before gateway headers are sent, an upstream error body passes through
@@ -251,7 +260,7 @@ keeps already forwarded chunks unchanged, appends one protocol-specific
 `event: error`, and closes the stream. Client cancellation does not append an
 event because the downstream reader is already gone. Error translation never
 adds prompts, completions, tool arguments, credentials, configuration details,
-or upstream response bodies to metadata or stdout.
+or upstream response bodies to live events or stdout.
 
 ### TODO: configurable gateway active limit
 
@@ -269,7 +278,7 @@ allowing concurrent inference:
   serializing active work for exclusive per-request performance.
 - Reject invalid configuration with a sanitized server error and never allow
   the configured limit to exceed verified aggregate backend capacity.
-- Continue exposing the effective limit in admission metadata and the private
+- Continue exposing the effective limit in admission events and the private
   status source. Test the default, invalid values, exact-boundary admission,
   cancellation, and lease release at limits greater than one.
 
@@ -296,38 +305,50 @@ Before increasing concurrency above one:
   subagents as concurrent requests, not automatically as different users or
   slots.
 
-### TODO: ephemeral live inference console
+### TODO: authenticated live inference console transport and UI
 
-Add a terminal-inspired, read-only activity panel that shows anonymous live
-system state and ephemeral process-level aggregates without exposing a shell,
-raw llama.cpp logs, process stdout, or user-linked inference activity:
+The process-local, principal-scoped lifecycle source and single privacy-safe
+gateway event contract are implemented. Here, **principal-scoped** means that
+the account ID is used as a private delivery address so each signed-in user can
+receive only events for requests authenticated by their own personal API keys.
+Add an authenticated, terminal-inspired, read-only activity panel without
+exposing a shell, raw llama.cpp logs, or process stdout:
 
-- Deliver typed, privacy-filtered process aggregates through a private
-  authenticated live source, likely SSE, with `Cache-Control: no-store`. Never
-  route inference events by principal, include account/key identifiers, or
-  reconstruct user histories.
+- Expose the existing process-local source through a private authenticated
+  TanStack Start SSE route with `Cache-Control: no-store`. Derive the principal
+  from the trusted browser session on the server; never accept a principal ID
+  supplied by the browser. Subscribe only to that principal's events.
+- Keep the principal ID out of event payloads and logs. The request ID may be
+  shown because the viewer owns the matching authenticated request.
+- Do not emit personal-console events for rejected or configuration-failed
+  authentication because those requests have no trusted owner.
 - Do not persist, replay, expose a history endpoint, or use browser local
   storage. A page load or process restart begins without history.
 - Show request lifecycle, status, duration, TTFT, prompt and generation
   throughput, input/output token counts, and cache reuse. Show context
   utilization only when both used tokens and effective capacity come from
   authoritative sources; never estimate it from text, bytes, or event counts.
-- Show a compact anonymous hardware snapshot when supported: unified-memory
-  use, GPU activity, temperature, and power. Render
-  unavailable sensors as unavailable rather than zero. Reserve process memory,
-  swap/zram, page pressure, device faults, clocks, and throttling details for
-  administrators.
+- Keep all-user activity and hardware telemetry out of this personal request
+  feed. A later administrator view may show supported unified-memory use, GPU
+  activity, temperature, and power, with unavailable sensors rendered as
+  unavailable rather than zero.
 - Describe the panel as a privacy-filtered, ephemeral live inference console,
   not raw terminal output. Clearly and persistently distinguish real
   measurements from any future benchmark-driven simulation.
 - Keep prompts, completions, reasoning, tool arguments, credentials, request
   bodies, raw SSE frames, filesystem paths, and raw llama.cpp, shell, and
   process output out of the event contract.
-- Revisit the current production stdout recorder as part of this UI phase. The
-  browser transport must not depend on stdout, and per-request stdout must be
-  removed or governed by a separate explicit retention policy.
-- Test absence of user linkage, empty state after refresh/restart, unsupported
-  sensors, content exclusion, and unambiguous real-versus-simulated labeling.
+- Treat the gateway lifecycle contract as browser-visible. The console source
+  forwards it unchanged; do not introduce a second console event type or add
+  internal-only fields to the shared contract.
+- Keep the browser transport independent of stdout. Per-request inference
+  metadata is intentionally absent from production stdout.
+- Close or revalidate the stream when the browser session expires, is revoked,
+  or becomes restricted. Anonymous demo tokens currently have no matching
+  signed-in account stream and require a separate product decision.
+- Test Alice/Bob isolation, principal and prohibited-content exclusion, empty
+  state after refresh/restart, session revocation, and unambiguous
+  real-versus-simulated labeling.
 
 ### TODO: SSD-protected model loading
 
@@ -374,10 +395,10 @@ development, product demonstrations, dashboard testing, and capacity planning:
 - Schedule prompt processing, TTFT, generation chunks, cache reuse, and
   nonlinear multi-slot slowdown separately. Allow configured synthetic token
   counts when accurate tokenization is unavailable.
-- Mark every response and metadata event unambiguously with a response header
-  and `simulated: true`. Show persistent simulation disclaimers before, during,
-  and after the demo response, including that no model or inference API was
-  contacted and that displayed speed is simulated from benchmark data.
+- Mark every response and future simulated event unambiguously with a response
+  header and `simulated: true`. Show persistent simulation disclaimers before,
+  during, and after the demo response, including that no model or inference API
+  was contacted and that displayed speed is simulated from benchmark data.
 - Support deterministic seeded completion, cancellation, overload, slow
   generation, and backend-failure scenarios.
 - Do not retain user-entered demo prompts. Keep simulated values separate from
@@ -404,8 +425,8 @@ pnpm test
 The built-server regression harness compiles the production application, starts
 an isolated loopback fake llama-server, migrates a temporary SQLite database,
 and checks personal-key authentication, key/account rejection, routing, shared
-capacity, stream cancellation, release paths, request IDs, metadata cardinality,
-and log privacy:
+capacity, stream cancellation, release paths, request IDs, absence of
+per-request stdout metadata, and log privacy:
 
 ```bash
 pnpm test:runtime
