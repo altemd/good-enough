@@ -1,6 +1,6 @@
 # Inference scheduling and model lifecycle
 
-Status: proposed product contract; existing benchmark evidence informs
+Status: implemented product contract; existing benchmark evidence informs
 operations but does not gate unrelated application phases
 
 This document records the expected behavior of the inference service. It is a
@@ -21,8 +21,8 @@ The initial invariant is therefore:
 - a loaded model may retain several non-unified KV slots for conversation
   reuse;
 - idle slots do not reserve a fixed share of compute;
-- another generation receives an immediate authenticated `429` rather than
-  waiting in a server-side queue; and
+- authenticated overflow waits in the bounded, principal-aware gateway queue;
+  and
 - concurrent generation is a trusted operator opt-in, not a client option.
 
 ## MVP router ownership and deferrals
@@ -53,7 +53,6 @@ evidence reopens them:
 - model downloads, deletion, expiry, quotas, and SSD lifecycle;
 - user-editable saved sampling defaults and gateway request rewriting;
 - simulation mode and administrator hardware telemetry;
-- a server-side generation queue and authenticated fairness; and
 - configurable or parallel active generation above the fixed global limit of
   one.
 
@@ -77,7 +76,7 @@ Increasing the active limit above `1` permits parallel generation only after
 the selected model has at least that many slots and the configuration has been
 qualified on the hardware. Clients cannot override it.
 
-## Slot behavior and deferred queueing
+## Slot behavior and bounded queueing
 
 `llama-server --parallel N` is model-process capacity. The gateway active limit
 is product scheduling policy. They deliberately do not have to be equal.
@@ -95,28 +94,18 @@ user arrives. It should instead select the intended slot profile when loading
 the model. A later reconfiguration may run only when the model is idle and the
 cache loss is explicit.
 
-Generation queueing is not part of the current product contract. OpenCode
-foreground subagents use the same retry policy as parent sessions and retry
-retryable `429` responses with exponential backoff. Its pinned AI SDK executes
-tools without blocking consumption of the parent provider stream, so the
-parent HTTP generation normally drains and releases the gateway lease while a
-foreground child starts and retries. This is sufficient for the current
-OpenCode foreground-subagent compatibility target without a server queue.
+Good Enough owns scheduling before forwarding a request body. One generation
+remains active globally. Each authenticated principal has a FIFO waiting queue,
+and released capacity rotates between principals. The default limits are 8
+waiting requests per principal, 64 globally, and a 600-second wait deadline.
+Trusted environment settings may change those positive-integer values.
 
-Claude Code's internal HTTP and retry behavior is closed-source and does not
-justify queueing. Background or parallel subagents remain unsupported while
-the service intentionally permits one active generation. A queue would add
-cancellation, timeout, fairness, connection-lifetime, and process-restart
-contracts without current UI feedback or demonstrated pilot need.
-
-Reconsider a bounded queue only if pilot evidence shows client retries are
-inadequate or unfair, or when an authenticated capacity/queue UI is planned.
-That future product decision must define the global bound, per-user fairness,
-cancellation, maximum wait, connection lifetime, restart behavior, overload
-responses, metadata, privacy, and UI feedback before implementation. No queue
-size or timeout default is currently selected. Revalidate the retry and
-stream-consumption assumptions whenever the pinned OpenCode or AI SDK version
-changes.
+Queue-bound and deadline failures use protocol-compatible `429` responses.
+Cancellation removes a waiter without forwarding or reading its body. The
+queue is process-local and disappears on restart. A queued request has no HTTP
+response headers yet, so client response-header timeouts must exceed the queue
+deadline when the full wait is desired. The private live console reports
+content-free queue counts and wait timing, but not an unstable queue position.
 
 ## Expected user and model scenarios
 
@@ -124,12 +113,11 @@ changes.
 
 #### One loaded model
 
-1. Two users select the same loaded model. One request runs and the other
-   receives `429`; a compatible client may retry. Both histories may remain in
-   separate KV slots.
+1. Two users select the same loaded model. One request runs and the other waits
+   for the next gateway lease. Both histories may remain in separate KV slots.
 2. Three users select a model loaded with three slots. One runs and the other
-   requests receive `429`; the service does not claim that the active request
-   runs at one-third speed.
+   requests wait; the service does not claim that the active request runs at
+   one-third speed.
 3. A third history arrives at a process with only two slots. llama.cpp may
    replace an idle slot. The application does not reload the process to add a
    slot while histories are live. When the model is the only resident model,
@@ -182,9 +170,9 @@ not current pilot behavior:
     accepted product policy and is not blocked on a performance benchmark.
     Model loading, unloading, and cache materialization remain separate
     transitions that may require the compute system to be idle.
-14. Concurrent generation receives the existing immediate `429`. Do not add a
-    queue merely to coordinate model selection; queueing requires the separate
-    evidence or authenticated-UI trigger described above.
+14. Concurrent generation uses the existing bounded gateway queue. Do not add
+    a second queue merely to coordinate model selection; model-transition
+    scheduling remains a separate responsibility.
 
 ## Optimized presets versus downloaded GGUFs
 

@@ -1,6 +1,7 @@
 # OpenCode subagents, tool-call boundaries, and gateway queueing
 
-Status: research note; queueing deferred by product decision
+Status: research note; the deferral below was superseded on 2026-07-22 by the
+implemented bounded gateway queue
 
 Date: 2026-07-18
 
@@ -34,11 +35,12 @@ terminal finish, usage, or `[DONE]` events. If the child request reaches Good
 Enough before the parent body closes, an immediate-rejection gateway returns
 `429`.
 
-The pinned OpenCode client treats retryable `429` responses as transient and
+At the time of this research, the pinned OpenCode client treated retryable
+`429` responses as transient and
 retries with exponential backoff while the AI SDK continues consuming the
 parent provider stream. The parent therefore normally drains and releases the
 lease while the foreground child starts and retries. This is sufficient for
-the current foreground-subagent target. A server queue is deferred because it
+the then-current foreground-subagent target. A server queue was deferred because it
 would add cancellation, timeout, fairness, connection-lifetime, and restart
 contracts without demonstrated pilot need or queue-aware UI feedback.
 
@@ -212,17 +214,17 @@ timeout applies only after a streaming response exists. A separate Good Enough
 chat UI could show queue state, but that would not make the standard OpenCode
 client queue-aware.
 
-## Product decision
+## Superseded product decision
 
-Do not implement a generation queue, queue configuration, timeout, metadata,
-tests, or defaults now. Preserve immediate protocol-compatible `429` rejection
-and the fixed active-generation limit of one. Background and parallel subagents
-remain unsupported.
+The original decision was to preserve immediate protocol-compatible `429`
+rejection. Live `llama.cpp -np 1` testing later confirmed that an overlapping
+request waits without preempting the active stream, and the observed OpenCode
+title-request overlap justified moving that waiting boundary into Good Enough.
+The implemented policy keeps one active generation, bounded principal-aware
+waiting, cancellation, a maximum wait, and privacy-safe queue telemetry.
 
-Reconsider queueing only if pilot evidence shows client retries are inadequate
-or unfair, or when an authenticated capacity/queue UI is planned. Revalidate
-the foreground retry and stream-consumption assumptions when the pinned
-OpenCode or AI SDK version changes.
+Revalidate client header-timeout behavior whenever the pinned OpenCode or AI
+SDK version changes because queued requests have not received response headers.
 
 ## Evidence that could reopen the decision
 

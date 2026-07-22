@@ -199,8 +199,9 @@ produce `429` server-function responses with a calculated `Retry-After`; the
 process-local attempt limit resets on restart.
 
 Demo tokens use the same OpenAI Bearer and Anthropic `x-api-key` contracts as
-personal keys. They receive no reserved inference capacity, queue, priority, or
-bypass, and authentication never records use or extends expiry. A copied token
+personal keys. They receive no reserved inference capacity, priority, or
+bypass, share the same queue limits, and authentication never records use or
+extends expiry. A copied token
 works until its absolute expiry, so the browser must treat the one-time response
 as a secret.
 
@@ -257,33 +258,29 @@ issuance but is not an identity or scripted-abuse boundary.
 ### Capacity behavior
 
 OpenAI chat completions and Anthropic messages share one process-local
-generation slot. While that slot is active, another generation request is
-rejected immediately with a protocol-compatible `429` capacity error. The
-OpenAI envelope uses the stable code `capacity_exceeded`; the Anthropic
-envelope uses `rate_limit_error`. There is no waiting queue or `Retry-After`
-header because the remaining generation time is unknown. `GET /v1/models`
-remains available while a generation is active.
+generation slot. Authenticated overflow waits in a bounded scheduler owned by
+the gateway. Each principal has a FIFO queue, and the scheduler rotates between
+principals when assigning the next lease. The defaults allow 8 waiting
+generations per principal, 64 waiting globally, and a 600-second maximum wait.
+These trusted settings are `INFERENCE_MAX_QUEUED_GENERATIONS`,
+`INFERENCE_MAX_QUEUED_GENERATIONS_PER_PRINCIPAL`, and
+`INFERENCE_QUEUE_TIMEOUT_SECONDS`.
+
+A request receives an immediate protocol-compatible `429 capacity_exceeded`
+when either queue bound is full. A request that reaches its wait deadline
+receives `429 queue_timeout`. Anthropic uses `rate_limit_error` for both. The
+gateway does not send `Retry-After` because it has no honest completion
+estimate. `GET /v1/models` remains available while generations are active or
+queued.
 
 The slot is held until the proxied response body completes, fails, or is
 cancelled. This includes time spent waiting for a slow client to read the
-stream. Enforcement resets if the Node process restarts and does not coordinate
-between multiple application processes. Those constraints match the initial
-single-process deployment and `llama-server --parallel 1`.
-
-Generation queueing is deliberately deferred. The initial OpenCode integration
-relies on its retry of retryable `429` responses: its pinned AI SDK continues
-consuming the parent provider stream while foreground tools run, so the parent
-normally drains and releases the gateway lease while a foreground subagent
-retries. Background or parallel subagents are unsupported while the gateway
-permits only one active generation. Claude Code's closed-source HTTP and retry
-behavior is not enough evidence to add a server queue.
-
-Reconsider a bounded queue only if pilot evidence shows client retries are
-inadequate or unfair, or when an authenticated capacity/queue UI is planned.
-Until then there is no queue-size setting, queue timeout, queue metadata, or
-promise that multiple pieces of work from one user can wait in parallel.
-Revalidate the retry and stream-consumption assumptions whenever the pinned
-OpenCode or AI SDK version changes.
+stream. The queue and active lease reset if the Node process restarts and do
+not coordinate between multiple application processes. A queued connection has
+not received response headers, so clients such as OpenCode must configure their
+provider header timeout above the gateway queue timeout if they should wait for
+the full period. Cancellation removes queued work immediately without reading
+or forwarding its request body.
 
 Privacy-filtered terminal events distinguish the status returned by the gateway
 from a status received from llama-server:
@@ -296,8 +293,10 @@ from a status received from llama-server:
 - `admissionStatus` records whether generation capacity was admitted, rejected,
   or not applicable.
 - `activeGenerationsAtAdmission`, `queuedGenerationsAtAdmission`, and
-  `concurrencyLimit` describe the admission snapshot. The queue count is always
-  zero in this phase.
+  `concurrencyLimit` describe the admission snapshot. `queueWaitMs` separates
+  scheduling delay from the rest of client-perceived TTFT. Live capacity events
+  also expose the global and owning principal's queue counts and configured
+  limits without exposing a principal ID.
 
 Therefore a local capacity rejection has `responseStatus: 429` and
 `upstreamStatus: null`, while a `429` returned by llama-server populates both
@@ -358,10 +357,10 @@ Before increasing concurrency above one:
 - Record the gateway active limit separately from each loaded model's
   llama-server parallel-slot capacity; they model different constraints and do
   not need to be equal.
-- Use authenticated identity to add per-user fairness before describing load as
-  “other users.” Until then, report “active generations.”
-- Expose active and configured slot counts through a private dashboard status
-  source. Add queued state only if the deferred queue is separately approved.
+- Preserve the implemented principal-aware queue fairness when active
+  concurrency changes.
+- Expose active, queued, and configured counts through the private dashboard
+  status source.
 - Benchmark prompt processing and token generation separately at concurrency
   levels 1, 2, 3, and higher.
 - Store measured ranges by hardware, model, quantization, context use, cache
