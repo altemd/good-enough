@@ -20,7 +20,8 @@ gateway slice:
 
 Requests are forwarded to `LLAMA_SERVER_URL`, which defaults to
 `http://127.0.0.1:8080`. Only loopback llama-server URLs are accepted. Start
-llama-server with one generation slot and keep it off the external network:
+llama-server with one generation slot and keep it off the external network. A
+single-model development command is:
 
 ```bash
 llama-server \
@@ -29,6 +30,16 @@ llama-server \
   --port 8080 \
   --parallel 1
 ```
+
+The AMD pilot uses llama-server router mode with a trusted host-owned preset
+file, `--models-max 2`, and autoload enabled. Every valid personal or demo API
+key may request any model in that curated router catalog; Good Enough does not
+parse the request body to apply a different model policy per credential. The
+application does not expose llama-server's `/models`, `/models/load`,
+`/models/unload`, download, or deletion endpoints. At least one curated model
+must be loaded before the browser demo can discover it through `/v1/models`, so
+the operator primes both approved models locally during startup verification.
+See the [AMD pilot host setup guide](docs/operations/amd-pilot-host-setup.md).
 
 Good Enough requires Node 24 or newer. Copy `.env.example` to `.env` and replace
 the synthetic bootstrap token. Do not commit the resulting `.env` file or real
@@ -278,7 +289,7 @@ event because the downstream reader is already gone. Error translation never
 adds prompts, completions, tool arguments, credentials, configuration details,
 or upstream response bodies to live events or stdout.
 
-### TODO: configurable gateway active limit
+### Deferred: configurable gateway active limit
 
 Replace the fixed generation limit with trusted server configuration before
 allowing concurrent inference:
@@ -298,7 +309,7 @@ allowing concurrent inference:
   status source. Test the default, invalid values, exact-boundary admission,
   cancellation, and lease release at limits greater than one.
 
-### TODO: measured multi-slot slowdown reporting
+### Deferred: measured multi-slot slowdown reporting
 
 Before increasing concurrency above one:
 
@@ -368,7 +379,7 @@ stdout:
   exclusion, empty state after remount, session revocation, exact transport-gap
   display, the 200-line bound, and unambiguous real-versus-simulated labeling.
 
-### TODO: SSD-protected model loading
+### Deferred: application-owned model loading and downloads
 
 Before exposing model selection, loading, eviction, download, or cache
 materialization:
@@ -391,7 +402,7 @@ The expected scheduling, model lifecycle, downloaded-model disclaimer, and
 bounded saved-sampling-parameter surface are recorded in
 [`docs/design/inference-scheduling-and-model-lifecycle.md`](docs/design/inference-scheduling-and-model-lifecycle.md).
 
-### TODO: benchmark-driven simulation mode
+### Deferred: benchmark-driven simulation mode
 
 Add a trusted server-enabled simulation backend and interactive demo for
 development, product demonstrations, dashboard testing, and capacity planning:
@@ -490,6 +501,10 @@ node .output/server/index.mjs
 ```
 
 The build output is a self-contained Node server. To deploy, copy the `.output/` directory to your host and run the server command above.
+
+The first AMD-machine checkout should follow the
+[pilot host setup guide](docs/operations/amd-pilot-host-setup.md) instead of
+treating this generic Nitro command as a complete production procedure.
 
 For host-specific presets (Vercel, Netlify, Cloudflare, AWS Lambda, etc.) and tuning, see https://v3.nitro.build/deploy.
 
