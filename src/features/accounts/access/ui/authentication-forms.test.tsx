@@ -80,7 +80,8 @@ describe("account entry forms", () => {
 		expect(
 			screen.getByText(/personal API keys that expire seven days/u),
 		).toBeTruthy();
-		expect(screen.getByText(/cannot be extended or converted/u)).toBeTruthy();
+		expect(screen.getByText(/does not extend that key/u)).toBeTruthy();
+		expect(screen.getByText(/There is no paid tier/u)).toBeTruthy();
 		fireEvent.change(screen.getByLabelText("Username"), {
 			target: { value: "new-member" },
 		});

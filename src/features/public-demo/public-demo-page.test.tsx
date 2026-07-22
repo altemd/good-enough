@@ -93,41 +93,58 @@ describe("public demo page", () => {
 		expect(
 			screen.getByRole("heading", { name: "Are local models good enough?" }),
 		).toBeTruthy();
+		expect(screen.getByText("Personal project · Local inference")).toBeTruthy();
 		expect(
-			screen.getByText(
-				"Local inference · OpenAI- and Anthropic-compatible APIs",
-			),
+			screen.getByText(/personal project built to find out/u),
 		).toBeTruthy();
 		expect(
-			screen.getByText(
-				"Try one for an hour on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo) host.",
-			),
+			screen.getByText(/free temporary API key that works for one hour/u),
+		).toBeTruthy();
+		expect(screen.getByText(/No account or payment is required/u)).toBeTruthy();
+		expect(
+			screen.getByRole("heading", { name: "What gets stored?" }),
 		).toBeTruthy();
 		expect(
-			screen.getByRole("heading", { name: "Private by design" }),
+			screen.getByText(/does not persist inference content/u),
 		).toBeTruthy();
 		expect(
-			screen.getByText(/never persists your prompts, responses, reasoning/u),
+			screen.getByRole("heading", {
+				name: "Seven-day API keys and live request timing",
+			}),
 		).toBeTruthy();
-		expect(
-			screen.getByText(/personal API keys that expire seven days/u),
-		).toBeTruthy();
-		expect(
-			screen.getByText(
-				/Demo keys expire after one hour and cannot be extended/u,
-			),
-		).toBeTruthy();
+		expect(screen.getByText(/There is no paid tier/u)).toBeTruthy();
 		expect(screen.getByText("example preview · synthetic events")).toBeTruthy();
 
 		fireEvent.click(
-			screen.getByRole("button", { name: "Start one-hour demo" }),
+			screen.getByRole("button", { name: "Get a free one-hour API key" }),
 		);
 
 		await screen.findByText("ge_demo_selector_private-secret");
 		expect(issueDemoToken).toHaveBeenCalledOnce();
 		expect(storageWrite).not.toHaveBeenCalled();
 		await screen.findByRole("heading", { name: "Live demo chat" });
-		expect(screen.getByText("No inference content persisted")).toBeTruthy();
+		expect(
+			screen.getByRole("complementary", {
+				name: "Temporary API key and client setup",
+			}),
+		).toBeTruthy();
+		expect(
+			screen.queryByRole("heading", { name: "Are local models good enough?" }),
+		).toBeNull();
+		expect(
+			screen.queryByRole("heading", {
+				name: "Seven-day API keys and live request timing",
+			}),
+		).toBeNull();
+		const privacyNotice = screen.getByRole("region", {
+			name: "Inference privacy",
+		});
+		expect(privacyNotice.textContent).toContain(
+			"Prompts, responses, reasoning, and tool arguments are not stored.",
+		);
+		expect(privacyNotice.textContent).toContain(
+			"request timing is live-only and not replayed",
+		);
 		expect(discoverOpenAiModelIds).toHaveBeenCalledWith(
 			"ge_demo_selector_private-secret",
 			expect.objectContaining({ signal: expect.any(AbortSignal) }),
@@ -161,7 +178,7 @@ describe("public demo page", () => {
 			/>,
 		);
 		fireEvent.click(
-			screen.getByRole("button", { name: "Start one-hour demo" }),
+			screen.getByRole("button", { name: "Get a free one-hour API key" }),
 		);
 		const prompt = await screen.findByRole("textbox", {
 			name: "Message the local model",
@@ -224,7 +241,7 @@ describe("public demo page", () => {
 			/>,
 		);
 		fireEvent.click(
-			screen.getByRole("button", { name: "Start one-hour demo" }),
+			screen.getByRole("button", { name: "Get a free one-hour API key" }),
 		);
 		const prompt = await screen.findByRole("textbox", {
 			name: "Message the local model",
@@ -273,7 +290,7 @@ describe("public demo page", () => {
 			/>,
 		);
 		fireEvent.click(
-			screen.getByRole("button", { name: "Start one-hour demo" }),
+			screen.getByRole("button", { name: "Get a free one-hour API key" }),
 		);
 		const prompt = await screen.findByRole("textbox", {
 			name: "Message the local model",
@@ -302,7 +319,7 @@ describe("public demo page", () => {
 			/>,
 		);
 		fireEvent.click(
-			screen.getByRole("button", { name: "Start one-hour demo" }),
+			screen.getByRole("button", { name: "Get a free one-hour API key" }),
 		);
 
 		await waitFor(() =>

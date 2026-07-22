@@ -52,7 +52,7 @@ describe("API credential onboarding", () => {
 
 		expect(screen.getByText(API_KEY)).toBeTruthy();
 		expect(
-			screen.getByText(/Prompts, responses, reasoning, and tool arguments/u),
+			screen.getByText(/Inference content is not persisted/u),
 		).toBeTruthy();
 		expect(screen.getByText("Discovering available models…")).toBeTruthy();
 		expect(screen.getByText("~/.config/opencode/opencode.json")).toBeTruthy();

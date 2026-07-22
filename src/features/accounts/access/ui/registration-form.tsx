@@ -42,12 +42,13 @@ export function RegistrationForm({ state }: { state: AccountEntryState }) {
 		<>
 			<div className="rounded-xl border bg-muted/40 p-4 text-sm leading-6">
 				<p className="font-medium">
-					Create separate personal API keys that expire seven days after
-					creation.
+					An account lets you create personal API keys that expire seven days
+					after creation.
 				</p>
 				<p className="mt-2 text-muted-foreground">
-					Demo keys expire after one hour and cannot be extended or converted.
-					Personal keys also unlock private, live-only request telemetry.
+					The free one-hour key on the landing page is separate, so creating an
+					account does not extend that key. An account also includes the live
+					request-timing console. There is no paid tier.
 				</p>
 				<p className="mt-2 text-muted-foreground">
 					Good Enough never persists prompts, responses, reasoning, or tool

@@ -72,18 +72,17 @@ export function ApiCredentialOnboarding({
 	}
 
 	return (
-		<section className="mt-5 rounded border border-amber-500 bg-amber-50 p-4">
-			<h2 className="font-bold">Copy this key now</h2>
-			<p>It cannot be shown again after you dismiss this panel.</p>
-			<p className="mt-2 text-sm leading-6 text-amber-950/80">
-				Prompts, responses, reasoning, and tool arguments are never persisted.
-				Registered users can view private request timing only while their live
-				console is connected; it is not replayed after refresh.
+		<section className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 shadow-xl shadow-black/5 sm:p-6">
+			<h2 className="font-semibold">Temporary API key</h2>
+			<p className="mt-1 text-sm leading-6 text-amber-950/80">
+				Copy it before dismissing this panel. It cannot be shown again.
 			</p>
-			<code className="my-3 block break-all">{apiKey}</code>
+			<code className="my-3 block break-all rounded-xl border border-amber-200 bg-white/80 p-3 text-sm">
+				{apiKey}
+			</code>
 			<button
 				type="button"
-				className="underline"
+				className="text-sm underline"
 				onClick={() => void copy(apiKey, setKeyCopyState)}
 			>
 				{copyLabel("Copy key", keyCopyState)}
@@ -94,32 +93,15 @@ export function ApiCredentialOnboarding({
 				</p>
 			) : null}
 
-			<div className="mt-6 border-t border-amber-300 pt-5">
-				<h3 className="font-bold">OpenCode configuration</h3>
-				<p className="mt-1">
-					Paste this complete JSON into the global OpenCode configuration at
-					<code className="ml-1">~/.config/opencode/opencode.json</code>. Create
-					the directory and file if they do not exist. If you already have a
-					config, merge the <code>provider.good-enough</code> entry instead of
-					replacing the file.
-				</p>
-				<p className="mt-2">
-					For project-only configuration, use <code>opencode.json</code> in the
-					project root.
-				</p>
-				<p className="mt-2 font-medium text-amber-900">
-					This JSON contains your plaintext API key. If you use the project
-					file, exclude it from version control. Do not commit, share, or
-					publish it.
-				</p>
-
+			<div className="mt-5 border-t border-amber-200 pt-5">
+				<h3 className="font-semibold">OpenCode configuration</h3>
 				{discovery.status === "loading" ? (
-					<p className="mt-4" aria-live="polite">
+					<p className="mt-3 text-sm" aria-live="polite">
 						Discovering available models…
 					</p>
 				) : null}
 				{discovery.status === "failed" ? (
-					<div className="mt-4" role="alert">
+					<div className="mt-3 text-sm" role="alert">
 						<p>
 							The OpenCode configuration could not be generated. Your key is
 							still valid. Make sure a model is available and try again.
@@ -136,10 +118,10 @@ export function ApiCredentialOnboarding({
 				{configJson ? (
 					<>
 						<section
-							className="relative mt-4"
+							className="relative mt-3"
 							aria-label="OpenCode configuration"
 						>
-							<pre className="max-h-96 overflow-auto rounded bg-slate-950 p-4 pr-14 text-sm text-slate-50">
+							<pre className="max-h-72 overflow-auto rounded-xl bg-slate-950 p-4 pr-14 text-xs text-slate-50">
 								<code>{configJson}</code>
 							</pre>
 							<button
@@ -167,11 +149,27 @@ export function ApiCredentialOnboarding({
 						) : null}
 					</>
 				) : null}
+
+				<p className="mt-4 text-xs leading-5 text-amber-950/80">
+					Save the complete JSON as
+					<code className="ml-1">~/.config/opencode/opencode.json</code>, or as
+					<code className="ml-1">opencode.json</code> in a project. If a config
+					already exists, merge its <code>provider.good-enough</code> entry.
+				</p>
+				<p className="mt-2 text-xs leading-5 font-medium text-amber-900">
+					The JSON contains the plaintext API key. Do not commit, share, or
+					publish it.
+				</p>
 			</div>
+
+			<p className="mt-5 border-t border-amber-200 pt-4 text-xs leading-5 text-amber-950/75">
+				Inference content is not persisted. Live request timing is not replayed
+				after refresh.
+			</p>
 
 			<button
 				type="button"
-				className="mt-6 underline"
+				className="mt-4 text-sm underline"
 				onClick={() => {
 					discoveryController.current?.abort();
 					onDismiss();

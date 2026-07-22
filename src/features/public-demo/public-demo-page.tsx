@@ -1,10 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import {
 	Activity,
-	Clock3,
 	Gauge,
-	LockKeyhole,
-	Play,
+	KeyRound,
 	Server,
 	ShieldCheck,
 	Timer,
@@ -81,84 +79,121 @@ export function PublicDemoPage({
 				</nav>
 			</header>
 
-			<div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:py-20">
-				<section className="lg:sticky lg:top-10">
-					<div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs">
-						<span className="size-2 rounded-full bg-emerald-500" />
-						Local inference · OpenAI- and Anthropic-compatible APIs
-					</div>
-					<h1 className="max-w-2xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-6xl">
-						Are local models good enough?
-					</h1>
-					<p className="mt-5 max-w-lg text-lg text-muted-foreground">
-						Try one for an hour on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo)
-						host.
-					</p>
-					<Button
-						className="mt-7"
-						size="lg"
-						type="button"
-						disabled={isIssuing || credential !== null}
-						onClick={startDemo}
-					>
-						<Play data-icon="inline-start" />
-						{isIssuing
-							? "Starting…"
-							: credential
-								? "Demo running"
-								: "Start one-hour demo"}
-					</Button>
-					<section
-						className="mt-7 max-w-lg rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-emerald-950 shadow-xs"
-						aria-labelledby="privacy-title"
-					>
-						<div className="flex items-center gap-2">
-							<ShieldCheck className="size-5 text-emerald-700" />
-							<h2 id="privacy-title" className="font-semibold">
-								Private by design
-							</h2>
+			<div
+				className={
+					credential
+						? "mx-auto grid max-w-[90rem] gap-6 px-5 py-8 sm:px-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(24rem,0.75fr)] xl:items-start"
+						: "mx-auto grid max-w-6xl gap-8 px-5 py-12 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:py-20"
+				}
+			>
+				{credential ? null : (
+					<section className="lg:sticky lg:top-10">
+						<div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs">
+							<span className="size-2 rounded-full bg-emerald-500" />
+							Personal project · Local inference
 						</div>
-						<p className="mt-3 text-sm leading-6">
-							Good Enough never persists your prompts, responses, reasoning, or
-							tool arguments.
+						<h1 className="max-w-2xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-6xl">
+							Are local models good enough?
+						</h1>
+						<p className="mt-5 max-w-lg text-lg leading-8 text-muted-foreground">
+							Good Enough is a personal project built to find out. It runs local
+							models on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo) and exposes
+							them through OpenAI- and Anthropic-compatible APIs.
 						</p>
-						<ul className="mt-3 grid gap-2 text-xs leading-5 text-emerald-900/80">
-							<li>
-								The demo key and conversation stay in this browser tab; refresh
-								or dismissal clears them.
-							</li>
-							<li>
-								Request telemetry is content-free, live-only, and never
-								replayed.
-							</li>
-							<li>
-								Accounts store only account, session, and API-key lifecycle
-								records.
-							</li>
-						</ul>
-					</section>
-					{error ? (
-						<p
-							className="mt-5 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
-							role="alert"
+						<p className="mt-4 max-w-lg leading-7 text-muted-foreground">
+							The button generates a free temporary API key that works for one
+							hour. You can use it in the chat here or copy it into your own
+							client. No account or payment is required.
+						</p>
+						<Button
+							className="mt-7"
+							size="lg"
+							type="button"
+							disabled={isIssuing || credential !== null}
+							onClick={startDemo}
 						>
-							{error}
-						</p>
-					) : null}
-				</section>
+							<KeyRound data-icon="inline-start" />
+							{isIssuing
+								? "Generating API key…"
+								: credential
+									? "API key ready"
+									: "Get a free one-hour API key"}
+						</Button>
+						<section
+							className="mt-7 max-w-lg rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-emerald-950 shadow-xs"
+							aria-labelledby="privacy-title"
+						>
+							<div className="flex items-center gap-2">
+								<ShieldCheck className="size-5 text-emerald-700" />
+								<h2 id="privacy-title" className="font-semibold">
+									What gets stored?
+								</h2>
+							</div>
+							<p className="mt-3 text-sm leading-6">
+								Good Enough does not persist inference content: your prompts,
+								responses, reasoning, and tool arguments are not saved.
+							</p>
+							<ul className="mt-3 grid gap-2 text-xs leading-5 text-emerald-900/80">
+								<li>
+									The temporary key and chat history exist only in this browser
+									tab; refreshing the page or dismissing the key clears them.
+								</li>
+								<li>
+									Live request timing does not contain inference content and is
+									not saved or replayed.
+								</li>
+								<li>
+									If you create an account, the server stores only the records
+									needed for the account, session, and API keys.
+								</li>
+							</ul>
+						</section>
+						{error ? (
+							<p
+								className="mt-5 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
+								role="alert"
+							>
+								{error}
+							</p>
+						) : null}
+					</section>
+				)}
 
 				{credential ? (
-					<div className="overflow-hidden rounded-3xl border bg-card shadow-xl shadow-black/5">
-						{models.length > 0 ? (
-							<DemoChat apiKey={credential.apiKey} models={models} />
-						) : null}
-						<details
-							className="border-t bg-muted/20 px-5 py-4 sm:px-7"
-							open={models.length === 0}
+					<>
+						<section
+							className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm leading-6 text-emerald-950 xl:col-span-2"
+							aria-label="Inference privacy"
 						>
-							<summary className="cursor-pointer text-sm font-medium">
-								Temporary API credential and client setup
-							</summary>
+							<ShieldCheck className="mt-1 size-4 shrink-0 text-emerald-700" />
+							<p>
+								<span className="font-medium">Privacy:</span> Prompts,
+								responses, reasoning, and tool arguments are not stored. The
+								plaintext key and chat stay in this tab; request timing is
+								live-only and not replayed.
+							</p>
+						</section>
+						<section className="min-w-0 overflow-hidden rounded-3xl border bg-card shadow-xl shadow-black/5">
+							{models.length > 0 ? (
+								<DemoChat apiKey={credential.apiKey} models={models} />
+							) : (
+								<div
+									className="flex min-h-[32rem] items-center justify-center bg-muted/20 p-8 text-center"
+									aria-live="polite"
+								>
+									<div>
+										<h2 className="font-semibold">Preparing the chat</h2>
+										<p className="mt-2 text-sm text-muted-foreground">
+											Checking which local models are available…
+										</p>
+									</div>
+								</div>
+							)}
+						</section>
+						<aside
+							className="min-w-0 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain"
+							aria-label="Temporary API key and client setup"
+						>
 							<ApiCredentialOnboarding
 								apiKey={credential.apiKey}
 								onModelsDiscovered={setModels}
@@ -167,14 +202,16 @@ export function PublicDemoPage({
 									setModels([]);
 								}}
 							/>
-						</details>
-					</div>
+						</aside>
+					</>
 				) : (
 					<DemoInvitation />
 				)}
 			</div>
 
-			<RequestTelemetryPitch account={account} entryState={entryState} />
+			{credential ? null : (
+				<RequestTelemetryPitch account={account} entryState={entryState} />
+			)}
 		</main>
 	);
 }
@@ -184,29 +221,22 @@ function DemoInvitation() {
 		<aside className="rounded-3xl border bg-card p-6 text-card-foreground shadow-xl shadow-black/5 sm:p-8">
 			<div className="flex items-start gap-3">
 				<span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-muted">
-					<Server className="size-5" />
+					<KeyRound className="size-5" />
 				</span>
 				<div>
-					<h2 className="font-semibold">One click opens the chat</h2>
-					<p className="mt-1 text-sm leading-6 text-muted-foreground">
-						Choose an available model and watch its response stream in real
-						time.
+					<h2 className="font-semibold">What the button does</h2>
+					<p className="mt-2 text-sm leading-6 text-muted-foreground">
+						It creates an API key and shows it once in this browser tab. The key
+						can call the OpenAI- and Anthropic-compatible endpoints, and the
+						built-in chat uses the same API.
 					</p>
 				</div>
 			</div>
-			<div className="mt-7 grid gap-3 sm:grid-cols-3">
-				<Feature icon={<Clock3 />} title="One hour" body="Absolute expiry." />
-				<Feature
-					icon={<LockKeyhole />}
-					title="Tab only"
-					body="Refresh clears it."
-				/>
-				<Feature
-					icon={<Activity />}
-					title="Real stream"
-					body="No external provider."
-				/>
-			</div>
+			<p className="mt-7 rounded-2xl bg-muted/60 p-4 text-sm leading-6 text-muted-foreground">
+				The key is free, requires no account, and expires one hour after it is
+				created. Requests go to llama.cpp on this machine rather than to OpenAI
+				or Anthropic; compatibility refers to the API format.
+			</p>
 		</aside>
 	);
 }
@@ -223,18 +253,17 @@ function RequestTelemetryPitch({
 			<div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:py-24">
 				<div>
 					<p className="text-sm font-medium text-muted-foreground">
-						Private request telemetry
+						Optional account
 					</p>
 					<h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-						See what each request is doing.
+						Seven-day API keys and live request timing
 					</h2>
 					<p className="mt-4 max-w-xl leading-7 text-muted-foreground">
-						Create an account to generate separate personal API keys that expire
-						seven days after creation and watch TTFT, duration, token counts,
-						prompt and generation speed, cache reuse, and capacity state for
-						your own requests. Demo keys expire after one hour and cannot be
-						extended or converted. The content-free feed is live-only and starts
-						empty after refresh.
+						A free account lets you create personal API keys that last seven
+						days. It also includes a live view of request timing—TTFT, duration,
+						token counts, processing and generation speed, cache reuse, and
+						capacity. The console does not include inference content and starts
+						empty whenever the page is refreshed. There is no paid tier.
 					</p>
 					<div className="mt-6">
 						{account ? (
@@ -247,7 +276,7 @@ function RequestTelemetryPitch({
 						) : (
 							<PublicRegistrationControl
 								state={entryState}
-								label="Create account"
+								label="Create a free account"
 							/>
 						)}
 					</div>
@@ -308,24 +337,6 @@ function TelemetryPreview() {
 				No prompt, response, reasoning, credential, or username is included.
 			</p>
 		</section>
-	);
-}
-
-function Feature({
-	icon,
-	title,
-	body,
-}: {
-	icon: React.ReactNode;
-	title: string;
-	body: string;
-}) {
-	return (
-		<div className="rounded-2xl border bg-background/80 p-4 shadow-xs">
-			<span className="text-muted-foreground [&_svg]:size-4">{icon}</span>
-			<p className="mt-3 text-sm font-medium">{title}</p>
-			<p className="mt-1 text-xs leading-5 text-muted-foreground">{body}</p>
-		</div>
 	);
 }
 
