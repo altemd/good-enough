@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { DemoChatMessage } from "./demo-chat-message.tsx";
 import { DemoChatTranscript } from "./demo-chat-transcript.tsx";
+
+afterEach(cleanup);
 
 const FIRST_MESSAGE: DemoChatMessage = {
 	id: 1,
@@ -50,6 +52,15 @@ describe("demo chat transcript", () => {
 
 		rerender(transcriptView([FIRST_MESSAGE, message(2), message(3)], 1));
 		expect(transcript.scrollTop).toBe(1_400);
+	});
+
+	it("gates the live region while a response streams", () => {
+		const { rerender } = renderTranscript([message(2)], 0);
+		const transcript = screen.getByRole("log", { name: "Demo conversation" });
+		expect(transcript.getAttribute("aria-live")).toBe("off");
+
+		rerender(transcriptView([{ ...message(2), status: "complete" }], 0));
+		expect(transcript.getAttribute("aria-live")).toBe("polite");
 	});
 });
 

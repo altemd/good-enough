@@ -73,7 +73,11 @@ export function SetupPage({ state }: { state: AccountEntryState }) {
 					autoComplete="off"
 					required
 				/>
-				{error ? <p className="text-red-700">{error}</p> : null}
+				{error ? (
+					<p role="alert" className="text-red-700">
+						{error}
+					</p>
+				) : null}
 				<Button size="lg" type="submit">
 					Create administrator
 				</Button>

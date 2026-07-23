@@ -15,6 +15,11 @@ export function DemoChatTranscript({
 	const viewport = useRef<HTMLDivElement>(null);
 	const followsLatest = useRef(true);
 	const previousForceScrollKey = useRef(forceScrollKey);
+	// Streaming flushes arrive once per animation frame; a polite live region
+	// would queue an announcement for every one. Announce only between turns.
+	const isStreaming = messages.some(
+		(message) => message.status === "streaming",
+	);
 
 	useLayoutEffect(() => {
 		const element = viewport.current;
@@ -37,7 +42,7 @@ export function DemoChatTranscript({
 			].join(" ")}
 			role="log"
 			aria-label="Demo conversation"
-			aria-live="polite"
+			aria-live={isStreaming ? "off" : "polite"}
 			aria-relevant="additions text"
 			tabIndex={messages.length === 0 ? undefined : 0}
 			onScroll={(event) => {

@@ -76,7 +76,11 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 					onDismiss={() => setNewKey(null)}
 				/>
 			) : null}
-			{error ? <p className="mt-4 text-red-700">{error}</p> : null}
+			{error ? (
+				<p role="alert" className="mt-4 text-red-700">
+					{error}
+				</p>
+			) : null}
 			<div className="mt-8 overflow-x-auto">
 				<table className="w-full text-left">
 					<thead>

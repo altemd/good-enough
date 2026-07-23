@@ -12,7 +12,10 @@ import { AccountFormField } from "./account-form-field";
 export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 	const changePassword = useServerFn(changeAccountPassword);
 	const router = useRouter();
-	const [message, setMessage] = useState<string | null>(null);
+	const [feedback, setFeedback] = useState<{
+		kind: "success" | "error";
+		text: string;
+	} | null>(null);
 
 	return (
 		<AccountPageLayout title="Security">
@@ -25,7 +28,7 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 				className="mt-6 grid max-w-md gap-4"
 				onSubmit={async (event) => {
 					event.preventDefault();
-					setMessage(null);
+					setFeedback(null);
 					const form = new FormData(event.currentTarget);
 					const result = await changePassword({
 						data: {
@@ -34,10 +37,13 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 						},
 					});
 					if (!result.ok) {
-						setMessage("Password could not be changed.");
+						setFeedback({
+							kind: "error",
+							text: "Password could not be changed.",
+						});
 						return;
 					}
-					setMessage("Password changed.");
+					setFeedback({ kind: "success", text: "Password changed." });
 					await router.invalidate();
 				}}
 			>
@@ -56,7 +62,18 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 					minLength={15}
 					required
 				/>
-				{message ? <p>{message}</p> : null}
+				{feedback ? (
+					<p
+						role="alert"
+						className={
+							feedback.kind === "error"
+								? "text-destructive"
+								: "text-emerald-700"
+						}
+					>
+						{feedback.text}
+					</p>
+				) : null}
 				<Button size="lg" type="submit">
 					Change password
 				</Button>
