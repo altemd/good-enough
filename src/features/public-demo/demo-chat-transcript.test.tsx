@@ -15,6 +15,16 @@ const FIRST_MESSAGE: DemoChatMessage = {
 };
 
 describe("demo chat transcript", () => {
+	it("does not create an internal scroll boundary for an empty conversation", () => {
+		const { unmount } = renderTranscript([], 0);
+		const transcript = screen.getByRole("log", { name: "Demo conversation" });
+
+		expect(transcript.className).not.toContain("overflow-y-auto");
+		expect(transcript.className).not.toContain("overscroll-contain");
+		expect(transcript.getAttribute("tabindex")).toBeNull();
+		unmount();
+	});
+
 	it("follows new output until the reader scrolls away from the bottom", () => {
 		let scrollHeight = 1_000;
 		const { rerender } = renderTranscript([FIRST_MESSAGE], 0);
@@ -24,6 +34,9 @@ describe("demo chat transcript", () => {
 			scrollHeight: { configurable: true, get: () => scrollHeight },
 			scrollTop: { configurable: true, value: 800, writable: true },
 		});
+		expect(transcript.className).toContain("overflow-y-auto");
+		expect(transcript.className).not.toContain("overscroll-contain");
+		expect(transcript.getAttribute("tabindex")).toBe("0");
 
 		scrollHeight = 1_200;
 		rerender(transcriptView([FIRST_MESSAGE, message(2)], 0));

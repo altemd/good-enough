@@ -29,13 +29,17 @@ export function DemoChatTranscript({
 	return (
 		<div
 			ref={viewport}
-			className="h-[min(56vh,34rem)] min-h-80 space-y-5 overflow-y-auto overscroll-contain bg-muted/20 p-5 sm:p-7"
+			className={[
+				"space-y-5 bg-muted/20 p-5 sm:p-7",
+				messages.length === 0
+					? "flex min-h-80 items-center justify-center"
+					: "h-[min(56vh,34rem)] min-h-80 overflow-y-auto",
+			].join(" ")}
 			role="log"
 			aria-label="Demo conversation"
 			aria-live="polite"
 			aria-relevant="additions text"
-			// biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users need to scroll the bounded transcript.
-			tabIndex={0}
+			tabIndex={messages.length === 0 ? undefined : 0}
 			onScroll={(event) => {
 				const element = event.currentTarget;
 				const distanceFromBottom =
@@ -67,7 +71,7 @@ function EmptyState({
 	body: string;
 }) {
 	return (
-		<div className="flex min-h-80 flex-col items-center justify-center text-center">
+		<div className="flex flex-col items-center justify-center text-center">
 			<span className="flex size-11 items-center justify-center rounded-2xl border bg-background text-muted-foreground [&_svg]:size-5">
 				{icon}
 			</span>

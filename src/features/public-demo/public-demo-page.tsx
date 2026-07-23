@@ -146,7 +146,7 @@ export function PublicDemoPage({
 							)}
 						</section>
 						<aside
-							className="order-1 min-w-0 lg:order-2 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain"
+							className="order-1 min-w-0 lg:order-2 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
 							aria-label="Temporary API key and client setup"
 						>
 							<ApiCredentialOnboarding
