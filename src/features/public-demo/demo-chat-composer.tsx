@@ -2,6 +2,7 @@ import { Send, Square } from "lucide-react";
 import type { SubmitEventHandler } from "react";
 
 import { Button } from "#/components/ui/button";
+import { Textarea } from "#/components/ui/textarea";
 
 const MAX_PROMPT_CHARACTERS = 4_000;
 
@@ -28,9 +29,11 @@ export function DemoChatComposer({
 				Message the local model
 			</label>
 			<div className="rounded-2xl border bg-background p-3 shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
-				<textarea
+				{/* The wrapper owns the input-group chrome, so the Textarea's own
+				    border/background/focus ring is neutralized at the call site. */}
+				<Textarea
 					id="demo-prompt"
-					className="max-h-48 min-h-20 w-full resize-y bg-transparent px-1 text-sm leading-6 outline-none placeholder:text-muted-foreground"
+					className="max-h-48 min-h-20 rounded-none border-0 bg-transparent px-1 py-0 leading-6 focus-visible:border-transparent focus-visible:ring-0"
 					placeholder="Message the local model…"
 					value={prompt}
 					maxLength={MAX_PROMPT_CHARACTERS}

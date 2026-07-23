@@ -2,6 +2,10 @@ import { RotateCcw } from "lucide-react";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "#/components/ui/button";
+import {
+	NativeSelect,
+	NativeSelectOption,
+} from "#/components/ui/native-select";
 import { DemoChatComposer } from "./demo-chat-composer";
 import { DemoChatDeltaBuffer } from "./demo-chat-delta-buffer";
 import type { DemoChatMessage } from "./demo-chat-message";
@@ -158,21 +162,30 @@ export function DemoChat({
 						</Button>
 					) : null}
 					{models.length > 0 ? (
-						<label className="text-xs text-muted-foreground">
-							Model
-							<select
-								className="ml-2 max-w-64 rounded-xl border bg-background px-3 py-2 text-sm text-foreground"
+						<div className="flex items-center gap-2">
+							<label
+								htmlFor="demo-model"
+								className="text-xs text-muted-foreground"
+							>
+								Model
+							</label>
+							<NativeSelect
+								id="demo-model"
+								className="max-w-64"
 								value={model}
 								disabled={isStreaming}
 								onChange={(event) => setModel(event.currentTarget.value)}
 							>
 								{models.map((availableModel) => (
-									<option key={availableModel} value={availableModel}>
+									<NativeSelectOption
+										key={availableModel}
+										value={availableModel}
+									>
 										{availableModel}
-									</option>
+									</NativeSelectOption>
 								))}
-							</select>
-						</label>
+							</NativeSelect>
+						</div>
 					) : null}
 				</div>
 			</header>

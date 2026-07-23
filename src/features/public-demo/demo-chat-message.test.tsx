@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type DemoChatMessage, DemoChatMessageView } from "./demo-chat-message";
@@ -33,15 +33,37 @@ describe("demo chat message", () => {
 				message={assistantMessage({ status: "streaming" })}
 			/>,
 		);
-		const disclosure = container.querySelector("details");
-		expect(disclosure?.open).toBe(true);
+		const trigger = screen.getByRole("button", { name: "Reasoning" });
+		const panel = () =>
+			container.querySelector('[data-slot="collapsible-content"]');
+		expect(trigger.getAttribute("aria-expanded")).toBe("true");
+		expect(panel()?.hasAttribute("hidden")).toBe(false);
 
 		rerender(
 			<DemoChatMessageView
 				message={assistantMessage({ status: "complete" })}
 			/>,
 		);
-		expect(disclosure?.open).toBe(false);
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+		expect(panel()?.hasAttribute("hidden")).toBe(true);
+	});
+
+	it("lets the reader reopen the reasoning after completion", () => {
+		const { container } = render(
+			<DemoChatMessageView
+				message={assistantMessage({ status: "complete" })}
+			/>,
+		);
+		const trigger = screen.getByRole("button", { name: "Reasoning" });
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+		fireEvent.click(trigger);
+		expect(trigger.getAttribute("aria-expanded")).toBe("true");
+		expect(
+			container
+				.querySelector('[data-slot="collapsible-content"]')
+				?.hasAttribute("hidden"),
+		).toBe(false);
 	});
 });
 
