@@ -215,7 +215,7 @@ function PrivacySummary() {
 				Good Enough does not persist inference content: your prompts, responses,
 				reasoning, and tool arguments are not saved.
 			</p>
-			<ul className="mt-3 grid gap-2 text-xs leading-5 text-emerald-900/80">
+			<ul className="mt-3 grid gap-2 text-xs leading-5 text-emerald-900/80 xl:grid-cols-2 xl:gap-x-6">
 				<li>
 					The temporary key and chat history exist only in this browser tab;
 					refreshing the page or dismissing the key clears them.

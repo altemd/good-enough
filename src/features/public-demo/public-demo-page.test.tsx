@@ -112,6 +112,9 @@ describe("public demo page", () => {
 			/anonymous hourly counts of rendered landing views/iu,
 		);
 		expect(
+			privacyHeading.closest("section")?.querySelector("ul")?.className,
+		).toContain("xl:grid-cols-2");
+		expect(
 			screen.getByRole("heading", {
 				name: "Seven-day API keys and live request timing",
 			}),
