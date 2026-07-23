@@ -2,6 +2,8 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
+import { Button } from "#/components/ui/button";
+
 import type { CurrentAccount } from "../../account-contract";
 import { AccountPageLayout } from "../../ui/account-page-layout";
 import { changeAccountPassword } from "../account-access.functions";
@@ -55,9 +57,9 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 					required
 				/>
 				{message ? <p>{message}</p> : null}
-				<button className="rounded bg-black px-4 py-2 text-white" type="submit">
+				<Button size="lg" type="submit">
 					Change password
-				</button>
+				</Button>
 			</form>
 		</AccountPageLayout>
 	);

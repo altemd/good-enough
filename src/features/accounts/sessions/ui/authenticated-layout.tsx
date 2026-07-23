@@ -1,6 +1,8 @@
 import { Link, Outlet, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 
+import { Button } from "#/components/ui/button";
+
 import { logoutAccount } from "../../access/account-access.functions";
 import type { CurrentAccount } from "../../account-contract";
 
@@ -25,16 +27,17 @@ export function AuthenticatedLayout({ account }: { account: CurrentAccount }) {
 						</>
 					) : null}
 					<span className="ml-auto">{account.username}</span>
-					<button
-						type="button"
+					<Button
+						variant="link"
 						className="underline"
+						type="button"
 						onClick={async () => {
 							await logout();
 							await router.navigate({ to: "/", replace: true });
 						}}
 					>
 						Sign out
-					</button>
+					</Button>
 				</nav>
 			</header>
 			<Outlet />

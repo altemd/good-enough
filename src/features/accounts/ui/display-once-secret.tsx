@@ -1,3 +1,5 @@
+import { Button } from "#/components/ui/button";
+
 export function DisplayOnceSecret({
 	title,
 	description,
@@ -14,16 +16,22 @@ export function DisplayOnceSecret({
 			<h2 className="font-bold">{title}</h2>
 			<p>{description}</p>
 			<code className="my-3 block break-all">{secret}</code>
-			<button
-				type="button"
+			<Button
+				variant="link"
 				className="underline"
+				type="button"
 				onClick={() => navigator.clipboard.writeText(secret)}
 			>
 				Copy
-			</button>
-			<button type="button" className="ml-5 underline" onClick={onDismiss}>
+			</Button>
+			<Button
+				variant="link"
+				className="ml-5 underline"
+				type="button"
+				onClick={onDismiss}
+			>
 				Dismiss
-			</button>
+			</Button>
 		</section>
 	);
 }

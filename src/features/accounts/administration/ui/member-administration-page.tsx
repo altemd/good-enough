@@ -2,6 +2,8 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
+import { Button } from "#/components/ui/button";
+
 import { AccountPageLayout } from "../../ui/account-page-layout";
 import { DisplayOnceSecret } from "../../ui/display-once-secret";
 import {
@@ -55,7 +57,8 @@ export function MemberAdministrationPage({
 							<td>{member.status}</td>
 							<td>{member.mustChangePassword ? "temporary" : "set"}</td>
 							<td className="flex gap-4 py-3">
-								<button
+								<Button
+									variant="link"
 									className="underline"
 									type="button"
 									onClick={async () => {
@@ -69,9 +72,10 @@ export function MemberAdministrationPage({
 									}}
 								>
 									{member.status === "active" ? "Disable" : "Enable"}
-								</button>
+								</Button>
 								{member.status === "active" ? (
-									<button
+									<Button
+										variant="link"
 										className="underline"
 										type="button"
 										onClick={async () => {
@@ -85,7 +89,7 @@ export function MemberAdministrationPage({
 										}}
 									>
 										Reset password
-									</button>
+									</Button>
 								) : null}
 							</td>
 						</tr>

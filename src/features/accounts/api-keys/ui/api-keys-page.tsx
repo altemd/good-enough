@@ -2,6 +2,7 @@ import { ClientOnly, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
+import { Button } from "#/components/ui/button";
 import { ApiCredentialOnboarding } from "#/features/client-onboarding/api-credential-onboarding";
 
 import { AccountPageLayout } from "../../ui/account-page-layout";
@@ -35,8 +36,9 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 				Inference content is never persisted. Your private live console shows
 				request timing only while connected and starts empty after refresh.
 			</p>
-			<button
-				className="mt-5 rounded bg-black px-4 py-2 text-white"
+			<Button
+				className="mt-5"
+				size="lg"
 				type="button"
 				disabled={isCreating || newKey !== null}
 				onClick={async () => {
@@ -66,7 +68,7 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 				}}
 			>
 				{isCreating ? "Creating…" : "Create key"}
-			</button>
+			</Button>
 			{newKey ? (
 				<ApiCredentialOnboarding
 					key={newKey}
@@ -99,7 +101,8 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 								<td>{key.state}</td>
 								<td>
 									{key.state === "active" ? (
-										<button
+										<Button
+											variant="link"
 											className="underline"
 											type="button"
 											onClick={async () => {
@@ -108,7 +111,7 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 											}}
 										>
 											Revoke
-										</button>
+										</Button>
 									) : null}
 								</td>
 							</tr>

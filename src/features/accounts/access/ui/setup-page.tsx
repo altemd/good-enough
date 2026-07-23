@@ -2,6 +2,8 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
+import { Button } from "#/components/ui/button";
+
 import { bootstrapAccount } from "../account-access.functions";
 import { AccessPage, type AccountEntryState } from "./access-page";
 import { AccountFormField } from "./account-form-field";
@@ -72,9 +74,9 @@ export function SetupPage({ state }: { state: AccountEntryState }) {
 					required
 				/>
 				{error ? <p className="text-red-700">{error}</p> : null}
-				<button className="rounded bg-black px-4 py-2 text-white" type="submit">
+				<Button size="lg" type="submit">
 					Create administrator
-				</button>
+				</Button>
 			</form>
 		</AccessPage>
 	);
