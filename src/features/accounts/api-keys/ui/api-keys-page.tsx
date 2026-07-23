@@ -32,7 +32,7 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 				Keys expire seven days after creation. Create a replacement before
 				updating a client.
 			</p>
-			<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+			<p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
 				Inference content is never persisted. Your private live console shows
 				request timing only while connected and starts empty after refresh.
 			</p>
@@ -77,7 +77,7 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 				/>
 			) : null}
 			{error ? (
-				<p role="alert" className="mt-4 text-red-700">
+				<p role="alert" className="mt-4 text-destructive">
 					{error}
 				</p>
 			) : null}

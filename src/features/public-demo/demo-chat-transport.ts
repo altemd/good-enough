@@ -1,3 +1,5 @@
+import { isAbortError } from "#/lib/errors";
+
 const MAX_SSE_EVENT_BYTES = 64 * 1024;
 
 export interface DemoChatRequestMessage {
@@ -216,10 +218,6 @@ function protocolError() {
 		"protocol",
 		"The model returned an unsupported response. Try again.",
 	);
-}
-
-function isAbortError(error: unknown) {
-	return error instanceof DOMException && error.name === "AbortError";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

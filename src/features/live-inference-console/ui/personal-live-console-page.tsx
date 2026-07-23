@@ -77,7 +77,7 @@ export function PersonalLiveConsolePage({
 			<div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
 				<ConnectionBadge state={connection} />
 			</div>
-			<p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+			<p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground">
 				Only live requests authenticated with your personal API keys appear
 				here. Prompts, responses, reasoning, credentials, and raw server output
 				are never included. Request timing is live-only: it is not saved or

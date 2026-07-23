@@ -1,3 +1,5 @@
+import { isAbortError } from "#/lib/errors";
+
 const MAX_RESPONSE_BYTES = 64 * 1024;
 const MAX_MODEL_ID_LENGTH = 256;
 const MAX_MODELS = 100;
@@ -112,10 +114,6 @@ async function readBoundedText(response: Response) {
 		offset += chunk.byteLength;
 	}
 	return new TextDecoder().decode(body);
-}
-
-function isAbortError(error: unknown) {
-	return error instanceof DOMException && error.name === "AbortError";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

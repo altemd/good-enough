@@ -2,6 +2,7 @@ import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { discoverOpenAiModelIds } from "#/features/inference-gateway/openai-model-discovery";
+import { isAbortError } from "#/lib/errors";
 
 import { buildOpenCodeConfigJson } from "./opencode-config";
 
@@ -100,7 +101,7 @@ export function ApiCredentialOnboarding({
 				</button>
 			</div>
 			{keyCopyState === "failed" ? (
-				<p role="alert" className="mt-2 text-red-700">
+				<p role="alert" className="mt-2 text-destructive">
 					The key could not be copied. Select it manually.
 				</p>
 			) : null}
@@ -155,7 +156,7 @@ export function ApiCredentialOnboarding({
 							</button>
 						</section>
 						{configCopyState === "failed" ? (
-							<p role="alert" className="mt-2 text-red-700">
+							<p role="alert" className="mt-2 text-destructive">
 								The JSON could not be copied. Select it manually.
 							</p>
 						) : null}
@@ -191,8 +192,4 @@ export function ApiCredentialOnboarding({
 			</button>
 		</section>
 	);
-}
-
-function isAbortError(error: unknown) {
-	return error instanceof DOMException && error.name === "AbortError";
 }

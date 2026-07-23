@@ -74,7 +74,7 @@ export function SetupPage({ state }: { state: AccountEntryState }) {
 					required
 				/>
 				{error ? (
-					<p role="alert" className="text-red-700">
+					<p role="alert" className="text-destructive">
 						{error}
 					</p>
 				) : null}

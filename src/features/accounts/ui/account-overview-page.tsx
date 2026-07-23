@@ -10,7 +10,7 @@ export function AccountOverviewPage({ account }: { account: CurrentAccount }) {
 				<dt>Role</dt>
 				<dd>{account.role}</dd>
 			</dl>
-			<p className="mt-8 text-slate-700">
+			<p className="mt-8 text-muted-foreground">
 				Inference content and per-user inference activity are not persisted.
 			</p>
 		</AccountPageLayout>
