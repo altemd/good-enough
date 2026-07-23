@@ -93,7 +93,7 @@ describe("public demo page", () => {
 		expect(
 			screen.getByRole("heading", { name: "Are local models good enough?" }),
 		).toBeTruthy();
-		expect(screen.getByText("Personal project · Local inference")).toBeTruthy();
+		expect(screen.queryByText("Personal project · Local inference")).toBeNull();
 		expect(
 			screen.getByText(/personal project built to help you find out/u),
 		).toBeTruthy();

@@ -88,10 +88,6 @@ export function PublicDemoPage({
 			>
 				{credential ? null : (
 					<section className="lg:sticky lg:top-10">
-						<div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs">
-							<span className="size-2 rounded-full bg-emerald-500" />
-							Personal project · Local inference
-						</div>
 						<h1 className="max-w-2xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-6xl">
 							Are local models good enough?
 						</h1>
