@@ -83,7 +83,3 @@ export const apiKeys = sqliteTable(
 		),
 	],
 );
-
-export const accountSchema = { apiKeys, sessions, users };
-
-export type AccountUser = typeof users.$inferSelect;
