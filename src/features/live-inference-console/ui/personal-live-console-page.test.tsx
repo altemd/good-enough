@@ -38,6 +38,7 @@ describe("personal live inference console page", () => {
 
 		expect(createEventSource).toHaveBeenCalledWith("/api/live-console/events");
 		expect(screen.getByText("Waiting for a personal request…")).toBeTruthy();
+		expect(screen.getByText(/Request timing is live-only/)).toBeTruthy();
 
 		act(() => source.open());
 		expect(screen.getByText("live")).toBeTruthy();

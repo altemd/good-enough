@@ -80,7 +80,8 @@ export function PersonalLiveConsolePage({
 			<p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
 				Only live requests authenticated with your personal API keys appear
 				here. Prompts, responses, reasoning, credentials, and raw server output
-				are never included. Refreshing clears this tab.
+				are never included. Request timing is live-only: it is not saved or
+				replayed. Refreshing clears this tab.
 			</p>
 
 			<section

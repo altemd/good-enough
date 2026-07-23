@@ -221,10 +221,6 @@ function PrivacySummary() {
 					refreshing the page or dismissing the key clears them.
 				</li>
 				<li>
-					Live request timing does not contain inference content and is not
-					saved or replayed.
-				</li>
-				<li>
 					If you create an account, the server stores only the records needed
 					for the account, session, and API keys.
 				</li>

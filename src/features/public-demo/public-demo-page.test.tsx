@@ -111,6 +111,9 @@ describe("public demo page", () => {
 		expect(privacyHeading.closest("section")?.textContent).toMatch(
 			/anonymous hourly counts of rendered landing views/iu,
 		);
+		expect(privacyHeading.closest("section")?.textContent).not.toMatch(
+			/live request timing/iu,
+		);
 		expect(
 			privacyHeading.closest("section")?.querySelector("ul")?.className,
 		).toContain("xl:grid-cols-2");
