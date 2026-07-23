@@ -65,6 +65,21 @@ describe("demo chat message", () => {
 				?.hasAttribute("hidden"),
 		).toBe(false);
 	});
+
+	it("shows only a status marker when generation fails before any content", () => {
+		const { container } = render(
+			<DemoChatMessageView
+				message={assistantMessage({
+					content: "",
+					reasoning: "",
+					status: "failed",
+				})}
+			/>,
+		);
+
+		expect(container.querySelector('[data-slot="bubble-content"]')).toBeNull();
+		expect(screen.getByText("Generation failed.")).toBeTruthy();
+	});
 });
 
 function assistantMessage(
