@@ -1,12 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-	Activity,
-	Gauge,
-	KeyRound,
-	Server,
-	ShieldCheck,
-	Timer,
-} from "lucide-react";
+import { Activity, Gauge, KeyRound, ShieldCheck, Timer } from "lucide-react";
 import { useState } from "react";
 
 import { Button, buttonVariants } from "#/components/ui/button";
@@ -68,8 +61,11 @@ export function PublicDemoPage({
 			<header className="border-b border-border/70 bg-background/85 backdrop-blur">
 				<nav className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-4 sm:px-8">
 					<Link className="flex items-center gap-2 font-semibold" to="/">
-						<span className="flex size-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-							<Server className="size-4" />
+						<span
+							aria-hidden="true"
+							className="flex size-8 items-center justify-center rounded-xl bg-primary text-[0.7rem] font-bold tracking-[-0.08em] text-primary-foreground"
+						>
+							GE
 						</span>
 						Good Enough
 					</Link>
