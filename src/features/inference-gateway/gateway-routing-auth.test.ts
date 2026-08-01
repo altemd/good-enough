@@ -92,6 +92,35 @@ describe("endpoint policies", () => {
 		});
 	});
 
+	it("preserves a client-provided Content-Length for the upstream stream", async () => {
+		const body = '{"stream":true}';
+		const contentLength = String(encoder.encode(body).byteLength);
+		let upstreamRequest: Request | undefined;
+		const fetchMock = createFetchMock(async (request) => {
+			upstreamRequest = request;
+			return new Response("upstream-response");
+		});
+		const request = new Request("https://gateway.example/v1/chat/completions", {
+			method: "POST",
+			body,
+			headers: {
+				authorization: `Bearer ${TEST_API_KEY}`,
+				"content-length": contentLength,
+				"content-type": "application/json",
+			},
+		});
+
+		const response = await handleGatewayRequest(
+			request,
+			ENDPOINTS["chat/completions"],
+			{ fetch: fetchMock.fetch },
+		);
+
+		expect(await response.text()).toBe("upstream-response");
+		expect(upstreamRequest?.headers.get("content-length")).toBe(contentLength);
+		expect(await upstreamRequest?.text()).toBe(body);
+	});
+
 	it("rejects unknown paths without contacting llama-server", async () => {
 		const fetchMock = createFetchMock(async () => new Response());
 		const metadata = createRecorder();
