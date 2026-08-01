@@ -195,7 +195,7 @@ configuration rather than replacing unrelated providers.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `LLAMA_SERVER_URL` | `http://127.0.0.1:8080` | Loopback-only llama-server origin |
+| `LLAMA_SERVER_URL` | `http://127.0.0.1:8080` | Loopback-only inference backend origin, such as llama-server or ds4 |
 | `GOOD_ENOUGH_DATABASE_PATH` | `./data/good-enough.sqlite` | Account, key, session, and analytics database |
 | `APP_ORIGIN` | `http://localhost:3000` outside production | Exact browser origin used for cookies and CSRF checks; production requires HTTPS |
 | `ACCOUNT_BOOTSTRAP_TOKEN` | none | 32-256 byte, whitespace-free token for first-admin setup |
@@ -206,8 +206,8 @@ configuration rather than replacing unrelated providers.
 | `INFERENCE_QUEUE_TIMEOUT_SECONDS` | `600` | Maximum wait before a protocol-compatible `429` |
 
 `LLAMA_SERVER_URL` accepts only an HTTP(S) origin on `127.0.0.1`, `::1`, or
-`localhost`, with no credentials, path, query, or fragment. Keep llama-server
-off the external network even when Good Enough is public.
+`localhost`, with no credentials, path, query, or fragment. Keep the inference
+backend off the external network even when Good Enough is public.
 
 ## Verification
 
@@ -243,7 +243,7 @@ node .output/server/index.mjs
 ```
 
 That command is not a complete public deployment. Terminate public HTTPS at a
-trusted ingress, bind Good Enough and llama-server to loopback, protect the
+trusted ingress, bind Good Enough and the inference backend to loopback, protect the
 SQLite database and `.env`, remove the bootstrap token after setup, and run a
 single application process unless the process-local queue and live event source
 are replaced with coordinated infrastructure.

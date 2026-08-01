@@ -1,8 +1,7 @@
 [Unit]
 Description=Good Enough production application
-Wants=good-enough-llama.service
-After=network-online.target good-enough-llama.service
-PartOf=good-enough.target
+After=network-online.target good-enough-llama.service good-enough-ds4.service
+PartOf=good-enough.target good-enough-ds4.target
 StartLimitIntervalSec=60
 StartLimitBurst=3
 
