@@ -1,8 +1,0 @@
-[Unit]
-Description=Good Enough ds4 services
-Wants=good-enough-ds4.service good-enough-app.service
-After=network-online.target good-enough-ds4.service
-Conflicts=good-enough.target
-
-[Install]
-WantedBy=default.target

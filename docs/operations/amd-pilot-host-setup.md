@@ -122,46 +122,6 @@ The immediate response is only an acknowledgement. Poll the local inventory
 until the model is authoritatively `loaded`; stop if it becomes `unloaded` with
 a failure indication or nonzero exit status.
 
-### Alternative ds4 backend
-
-The same Good Enough routes can use ds4 without an application proxy change.
-ds4 exposes `GET /v1/models`, `POST /v1/chat/completions`, and
-`POST /v1/messages` with compatible response families. Good Enough forwards the
-successful model-list response, and its discovery projection only requires
-`data[].id`.
-
-The repository includes an alternate `good-enough-ds4.target`. Configure the
-private application `.env` with the ds4 loopback port before selecting it:
-
-```dotenv
-LLAMA_SERVER_URL=http://127.0.0.1:8000
-```
-
-Create a separate private `.env.ds4` file for the service model path:
-
-```dotenv
-DS4_MODEL_PATH=/path/to/operator-owned/ds4-model.gguf
-```
-
-Keep that file mode `600` and out of Git. The ds4 service explicitly sets
-`--host 127.0.0.1` and `--port 8000`; ds4's default host is also loopback, but
-the unit does not rely on that default. Install the units with
-`pnpm prod:amd:install`, then select the backend deliberately:
-
-```bash
-pnpm prod:amd:ds4:start
-pnpm prod:amd:ds4:status
-```
-
-Selecting the ds4 target conflicts with the llama target so both backends are
-not intentionally resident at the same time. Return to the llama target only
-after restoring the private `.env` backend URL:
-
-```bash
-pnpm prod:amd:ds4:stop
-pnpm prod:amd:start
-```
-
 ## 3. Configure Good Enough
 
 Create a disposable local environment with restrictive permissions:

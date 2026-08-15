@@ -2,7 +2,6 @@
 Description=Good Enough production services
 Wants=good-enough-llama.service good-enough-app.service
 After=network-online.target
-Conflicts=good-enough-ds4.target
 
 [Install]
 WantedBy=default.target

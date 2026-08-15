@@ -195,7 +195,7 @@ configuration rather than replacing unrelated providers.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `LLAMA_SERVER_URL` | `http://127.0.0.1:8080` | Loopback-only inference backend origin, such as llama-server or ds4 |
+| `LLAMA_SERVER_URL` | `http://127.0.0.1:8080` | Loopback-only inference backend origin, such as llama-server |
 | `GOOD_ENOUGH_DATABASE_PATH` | `./data/good-enough.sqlite` | Account, key, session, and analytics database |
 | `APP_ORIGIN` | `http://localhost:3000` outside production | Exact browser origin used for cookies and CSRF checks; production requires HTTPS |
 | `ACCOUNT_BOOTSTRAP_TOKEN` | none | 32-256 byte, whitespace-free token for first-admin setup |
