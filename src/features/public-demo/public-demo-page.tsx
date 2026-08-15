@@ -118,6 +118,7 @@ export function PublicDemoPage({
 
 				{credential ? (
 					<>
+						<h1 className="sr-only">Live demo</h1>
 						<section className="order-2 min-w-0 overflow-hidden rounded-3xl border bg-card shadow-xl shadow-black/5 lg:order-1">
 							{models.length > 0 ? (
 								<DemoChat apiKey={credential.apiKey} models={models} />

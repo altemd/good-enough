@@ -133,6 +133,9 @@ describe("public demo page", () => {
 		await screen.findByText("ge_demo_selector_private-secret");
 		expect(issueDemoToken).toHaveBeenCalledOnce();
 		expect(storageWrite).not.toHaveBeenCalled();
+		expect(
+			await screen.findByRole("heading", { name: "Live demo", level: 1 }),
+		).toBeTruthy();
 		const chatHeading = await screen.findByRole("heading", {
 			name: "Live demo chat",
 		});

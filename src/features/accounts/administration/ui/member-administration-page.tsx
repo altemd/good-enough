@@ -50,53 +50,25 @@ export function MemberAdministrationPage({
 					{error}
 				</p>
 			) : null}
-			<table className="mt-8 w-full text-left">
-				<thead>
-					<tr>
-						<th>Username</th>
-						<th>Status</th>
-						<th>Password</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					{members.map((member) => (
-						<tr className="border-t" key={member.id}>
-							<td className="py-3">{member.username}</td>
-							<td>{member.status}</td>
-							<td>{member.mustChangePassword ? "temporary" : "set"}</td>
-							<td className="flex gap-4 py-3">
-								<Button
-									variant="link"
-									className="underline"
-									type="button"
-									disabled={isSubmitting}
-									onClick={() =>
-										void run(
-											"The member could not be updated. Try again.",
-											async () => {
-												const result = await setDisabled({
-													data: {
-														memberId: member.id,
-														disabled: member.status === "active",
-													},
-												});
-												if (!result.ok) {
-													setError(
-														"This account can no longer manage members.",
-													);
-													return;
-												}
-												await router.invalidate();
-											},
-											"Updating…",
-										)
-									}
-								>
-									{busyText("Updating…") ??
-										(member.status === "active" ? "Disable" : "Enable")}
-								</Button>
-								{member.status === "active" ? (
+			<div className="mt-8 overflow-x-auto">
+				<table className="w-full text-left">
+					<thead>
+						<tr>
+							<th scope="col">Username</th>
+							<th scope="col">Status</th>
+							<th scope="col">Password</th>
+							<th scope="col">
+								<span className="sr-only">Actions</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{members.map((member) => (
+							<tr className="border-t" key={member.id}>
+								<td className="py-3">{member.username}</td>
+								<td>{member.status}</td>
+								<td>{member.mustChangePassword ? "temporary" : "set"}</td>
+								<td className="flex gap-4 py-3">
 									<Button
 										variant="link"
 										className="underline"
@@ -104,32 +76,66 @@ export function MemberAdministrationPage({
 										disabled={isSubmitting}
 										onClick={() =>
 											void run(
-												"The temporary password could not be issued. Try again.",
+												"The member could not be updated. Try again.",
 												async () => {
-													const result = await issuePassword({
-														data: { memberId: member.id },
+													const result = await setDisabled({
+														data: {
+															memberId: member.id,
+															disabled: member.status === "active",
+														},
 													});
 													if (!result.ok) {
 														setError(
-															"The temporary password could not be issued. Try again.",
+															"This account can no longer manage members.",
 														);
 														return;
 													}
-													setTemporaryPassword(result.value.temporaryPassword);
 													await router.invalidate();
 												},
-												"Resetting…",
+												"Updating…",
 											)
 										}
 									>
-										{busyText("Resetting…") ?? "Reset password"}
+										{busyText("Updating…") ??
+											(member.status === "active" ? "Disable" : "Enable")}
 									</Button>
-								) : null}
-							</td>
-						</tr>
-					))}
-				</tbody>
-			</table>
+									{member.status === "active" ? (
+										<Button
+											variant="link"
+											className="underline"
+											type="button"
+											disabled={isSubmitting}
+											onClick={() =>
+												void run(
+													"The temporary password could not be issued. Try again.",
+													async () => {
+														const result = await issuePassword({
+															data: { memberId: member.id },
+														});
+														if (!result.ok) {
+															setError(
+																"The temporary password could not be issued. Try again.",
+															);
+															return;
+														}
+														setTemporaryPassword(
+															result.value.temporaryPassword,
+														);
+														await router.invalidate();
+													},
+													"Resetting…",
+												)
+											}
+										>
+											{busyText("Resetting…") ?? "Reset password"}
+										</Button>
+									) : null}
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
 		</AccountPageLayout>
 	);
 }

@@ -81,63 +81,71 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 					{error}
 				</p>
 			) : null}
-			<div className="mt-8 overflow-x-auto">
-				<table className="w-full text-left">
-					<thead>
-						<tr>
-							<th>Prefix</th>
-							<th>Created</th>
-							<th>Expires</th>
-							<th>State</th>
-							<th></th>
-						</tr>
-					</thead>
-					<tbody>
-						{keys.map((key) => (
-							<tr className="border-t" key={key.prefix}>
-								<td className="py-3 font-mono">{key.prefix}</td>
-								<td>
-									<LocalDateTime value={key.createdAt} />
-								</td>
-								<td>
-									<LocalDateTime value={key.expiresAt} />
-								</td>
-								<td>{key.state}</td>
-								<td>
-									{key.state === "active" ? (
-										<Button
-											variant="link"
-											className="underline"
-											type="button"
-											disabled={isSubmitting}
-											onClick={() =>
-												void run(
-													"The key could not be revoked. Try again.",
-													async () => {
-														const result = await revokeKey({
-															data: { prefix: key.prefix },
-														});
-														if (!result.ok) {
-															setError(
-																"The key could not be revoked. Try again.",
-															);
-															return;
-														}
-														await router.invalidate();
-													},
-													"Revoking…",
-												)
-											}
-										>
-											{busyText("Revoking…") ?? "Revoke"}
-										</Button>
-									) : null}
-								</td>
+			{keys.length === 0 ? (
+				<p className="mt-8 max-w-2xl text-sm leading-6 text-muted-foreground">
+					No API keys yet. Create a key to start making requests.
+				</p>
+			) : (
+				<div className="mt-8 overflow-x-auto">
+					<table className="w-full text-left">
+						<thead>
+							<tr>
+								<th scope="col">Prefix</th>
+								<th scope="col">Created</th>
+								<th scope="col">Expires</th>
+								<th scope="col">State</th>
+								<th scope="col">
+									<span className="sr-only">Actions</span>
+								</th>
 							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
+						</thead>
+						<tbody>
+							{keys.map((key) => (
+								<tr className="border-t" key={key.prefix}>
+									<td className="py-3 font-mono">{key.prefix}</td>
+									<td>
+										<LocalDateTime value={key.createdAt} />
+									</td>
+									<td>
+										<LocalDateTime value={key.expiresAt} />
+									</td>
+									<td>{key.state}</td>
+									<td>
+										{key.state === "active" ? (
+											<Button
+												variant="link"
+												className="underline"
+												type="button"
+												disabled={isSubmitting}
+												onClick={() =>
+													void run(
+														"The key could not be revoked. Try again.",
+														async () => {
+															const result = await revokeKey({
+																data: { prefix: key.prefix },
+															});
+															if (!result.ok) {
+																setError(
+																	"The key could not be revoked. Try again.",
+																);
+																return;
+															}
+															await router.invalidate();
+														},
+														"Revoking…",
+													)
+												}
+											>
+												{busyText("Revoking…") ?? "Revoke"}
+											</Button>
+										) : null}
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			)}
 		</AccountPageLayout>
 	);
 }

@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen } from "@testing-library/react";
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -39,6 +45,9 @@ describe("personal live inference console page", () => {
 		expect(createEventSource).toHaveBeenCalledWith("/api/live-console/events");
 		expect(screen.getByText("Waiting for a personal request…")).toBeTruthy();
 		expect(screen.getByText(/Request timing is live-only/)).toBeTruthy();
+		expect(screen.getByRole("status")).toBeTruthy();
+		expect(screen.getByText("connecting")).toBeTruthy();
+		expect(screen.getByRole("list")).toBeTruthy();
 
 		act(() => source.open());
 		expect(screen.getByText("live")).toBeTruthy();
@@ -188,6 +197,31 @@ describe("personal live inference console page", () => {
 		);
 		expect(screen.queryByText("request-001")).toBeNull();
 		expect(screen.getByText("request-201")).toBeTruthy();
+	});
+
+	it("reconnects through a fresh event source after a failure", () => {
+		const sources: FakeEventSource[] = [];
+		const createEventSource = vi.fn(() => {
+			const source = new FakeEventSource();
+			sources.push(source);
+			return source;
+		});
+
+		render(<PersonalLiveConsolePage createEventSource={createEventSource} />);
+
+		act(() => sources[0].fail());
+		expect(screen.getByRole("status")).toBeTruthy();
+		expect(screen.getByText("disconnected")).toBeTruthy();
+		expect(sources[0].close).toHaveBeenCalled();
+
+		act(() => {
+			fireEvent.click(screen.getByRole("button", { name: "Try to reconnect" }));
+		});
+
+		expect(createEventSource).toHaveBeenCalledTimes(2);
+		expect(sources[1]).toBeTruthy();
+		act(() => sources[1].open());
+		expect(screen.getByText("live")).toBeTruthy();
 	});
 
 	it("keeps history in component memory only and closes the stream", () => {

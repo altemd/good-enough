@@ -40,6 +40,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("api keys page", () => {
+	it("shows an empty state instead of a bare table", () => {
+		render(<ApiKeysPage keys={[]} />);
+		expect(
+			screen.getByText(
+				"No API keys yet. Create a key to start making requests.",
+			),
+		).toBeTruthy();
+		expect(screen.queryByRole("table")).toBeNull();
+	});
+
 	it("reports a failed revocation and recovers the button", async () => {
 		keyFunctions.revokePersonalApiKey.mockRejectedValue(new Error("network"));
 		render(<ApiKeysPage keys={[activeKey]} />);

@@ -36,11 +36,14 @@ export function PersonalLiveConsolePage({
 }) {
 	const [connection, setConnection] = useState<ConnectionState>("connecting");
 	const [lines, setLines] = useState<RenderedLine[]>([]);
+	const [connectionAttempt, setConnectionAttempt] = useState(0);
 	const nextKey = useRef(0);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the counter intentionally restarts the connection after an explicit reconnect request.
 	useEffect(() => {
 		const source = createEventSource("/api/live-console/events");
 		let active = true;
+		setConnection("connecting");
 		const append = (line: PersonalConsoleLine) => {
 			if (!active) return;
 			nextKey.current += 1;
@@ -70,12 +73,21 @@ export function PersonalLiveConsolePage({
 			active = false;
 			source.close();
 		};
-	}, [createEventSource]);
+	}, [createEventSource, connectionAttempt]);
 
 	return (
 		<AccountPageLayout title="Live inference console">
 			<div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
 				<ConnectionBadge state={connection} />
+				{connection === "disconnected" ? (
+					<button
+						type="button"
+						className="font-medium underline underline-offset-4"
+						onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
+					>
+						Try to reconnect
+					</button>
+				) : null}
 			</div>
 			<p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground">
 				Only live requests authenticated with your personal API keys appear
@@ -117,16 +129,15 @@ export function PersonalLiveConsolePage({
 							This page starts empty; past activity is not replayed.
 						</p>
 					</div>
-				) : (
-					<ol
-						aria-live="polite"
-						className="max-h-[32rem] overflow-y-auto p-2 font-mono text-xs"
-					>
-						{lines.map((line) => (
-							<ConsoleLine key={line.key} line={line} />
-						))}
-					</ol>
-				)}
+				) : null}
+				<ol
+					aria-live="polite"
+					className="max-h-[32rem] overflow-y-auto p-2 font-mono text-xs"
+				>
+					{lines.map((line) => (
+						<ConsoleLine key={line.key} line={line} />
+					))}
+				</ol>
 			</section>
 		</AccountPageLayout>
 	);
@@ -139,10 +150,10 @@ function ConnectionBadge({ state }: { state: ConnectionState }) {
 		live: "border-sky-200 bg-sky-50 text-sky-900",
 	}[state];
 	return (
-		<span className={`rounded-full border px-3 py-1 font-medium ${styles}`}>
+		<output className={`rounded-full border px-3 py-1 font-medium ${styles}`}>
 			<span aria-hidden="true">● </span>
 			{state}
-		</span>
+		</output>
 	);
 }
 
