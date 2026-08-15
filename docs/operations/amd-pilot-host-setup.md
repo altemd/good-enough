@@ -95,7 +95,7 @@ llama-server \
 ```
 
 Keep the listener on `127.0.0.1`. Do not use `0.0.0.0`, a LAN address, or a
-Tailscale address for llama-server.
+private-network address for llama-server.
 
 Confirm the listener and inspect only the local model inventory:
 
