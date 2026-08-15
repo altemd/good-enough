@@ -1,7 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
 
+import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
 
 import { loginAccount } from "../account-access.functions";
@@ -10,18 +10,15 @@ import { AccountFormField } from "./account-form-field";
 export function LoginForm() {
 	const login = useServerFn(loginAccount);
 	const router = useRouter();
-	const [error, setError] = useState<string | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const { isSubmitting, error, setError, run } = useSubmission();
 
 	return (
 		<form
 			className="grid gap-4"
-			onSubmit={async (event) => {
+			onSubmit={(event) => {
 				event.preventDefault();
-				setError(null);
-				setIsSubmitting(true);
 				const form = new FormData(event.currentTarget);
-				try {
+				void run("Sign in could not be completed. Try again.", async () => {
 					const result = await login({
 						data: {
 							username: String(form.get("username") ?? ""),
@@ -39,11 +36,7 @@ export function LoginForm() {
 					await router.navigate({
 						to: result.value.restricted ? "/account/security" : "/account",
 					});
-				} catch {
-					setError("Sign in could not be completed. Try again.");
-				} finally {
-					setIsSubmitting(false);
-				}
+				});
 			}}
 		>
 			<AccountFormField

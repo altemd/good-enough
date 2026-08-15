@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Activity, Gauge, KeyRound, ShieldCheck, Timer } from "lucide-react";
 import { useState } from "react";
 
+import { useSubmission } from "#/components/common/use-submission";
 import { Button, buttonVariants } from "#/components/ui/button";
 import type { AccountEntryState } from "#/features/accounts/access/ui/access-page";
 import type {
@@ -34,26 +35,19 @@ export function PublicDemoPage({
 	issueDemoToken,
 }: PublicDemoPageProps) {
 	const [credential, setCredential] = useState<DemoCredential | null>(null);
-	const [error, setError] = useState<string | null>(null);
-	const [isIssuing, setIsIssuing] = useState(false);
+	const { isSubmitting, error, setError, run } = useSubmission();
 	const [models, setModels] = useState<string[]>([]);
 
-	async function startDemo() {
-		setError(null);
+	function startDemo() {
 		setModels([]);
-		setIsIssuing(true);
-		try {
+		void run("The demo could not be started. Try again later.", async () => {
 			const result = await issueDemoToken();
 			if (!result.ok) {
 				setError(messageForDemoFailure(result));
 				return;
 			}
 			setCredential(result.value);
-		} catch {
-			setError("The demo could not be started. Try again later.");
-		} finally {
-			setIsIssuing(false);
-		}
+		});
 	}
 
 	return (
@@ -101,11 +95,11 @@ export function PublicDemoPage({
 							className="mt-7"
 							size="lg"
 							type="button"
-							disabled={isIssuing || credential !== null}
+							disabled={isSubmitting || credential !== null}
 							onClick={startDemo}
 						>
 							<KeyRound data-icon="inline-start" />
-							{isIssuing
+							{isSubmitting
 								? "Generating API key…"
 								: credential
 									? "API key ready"

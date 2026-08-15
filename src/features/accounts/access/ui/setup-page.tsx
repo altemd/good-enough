@@ -1,7 +1,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
 
+import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
 
 import { bootstrapAccount } from "../account-access.functions";
@@ -11,7 +11,7 @@ import { AccountFormField } from "./account-form-field";
 export function SetupPage({ state }: { state: AccountEntryState }) {
 	const router = useRouter();
 	const bootstrap = useServerFn(bootstrapAccount);
-	const [error, setError] = useState<string | null>(null);
+	const { isSubmitting, error, setError, run } = useSubmission();
 
 	if (!state.configurationValid) {
 		return (
@@ -34,22 +34,23 @@ export function SetupPage({ state }: { state: AccountEntryState }) {
 			<p>This trusted setup works only while the account database is empty.</p>
 			<form
 				className="mt-6 grid max-w-md gap-4"
-				onSubmit={async (event) => {
+				onSubmit={(event) => {
 					event.preventDefault();
-					setError(null);
 					const form = new FormData(event.currentTarget);
-					const result = await bootstrap({
-						data: {
-							username: String(form.get("username") ?? ""),
-							password: String(form.get("password") ?? ""),
-							bootstrapToken: String(form.get("bootstrapToken") ?? ""),
-						},
+					void run("Setup could not be completed. Try again.", async () => {
+						const result = await bootstrap({
+							data: {
+								username: String(form.get("username") ?? ""),
+								password: String(form.get("password") ?? ""),
+								bootstrapToken: String(form.get("bootstrapToken") ?? ""),
+							},
+						});
+						if (!result.ok) {
+							setError(messageFor(result.code));
+							return;
+						}
+						await router.navigate({ to: "/login" });
 					});
-					if (!result.ok) {
-						setError(messageFor(result.code));
-						return;
-					}
-					await router.navigate({ to: "/login" });
 				}}
 			>
 				<AccountFormField
@@ -78,8 +79,8 @@ export function SetupPage({ state }: { state: AccountEntryState }) {
 						{error}
 					</p>
 				) : null}
-				<Button size="lg" type="submit">
-					Create administrator
+				<Button size="lg" type="submit" disabled={isSubmitting}>
+					{isSubmitting ? "Creating administrator…" : "Create administrator"}
 				</Button>
 			</form>
 		</AccessPage>

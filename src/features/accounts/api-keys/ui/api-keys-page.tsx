@@ -2,6 +2,7 @@ import { ClientOnly, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
+import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
 import { ApiCredentialOnboarding } from "#/features/client-onboarding/api-credential-onboarding";
 
@@ -23,8 +24,9 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 	const revokeKey = useServerFn(revokePersonalApiKey);
 	const router = useRouter();
 	const [newKey, setNewKey] = useState<string | null>(null);
-	const [error, setError] = useState<string | null>(null);
-	const [isCreating, setIsCreating] = useState(false);
+	const { isSubmitting, busyLabel, error, setError, run } = useSubmission();
+	const busyText = (label: string) =>
+		isSubmitting && busyLabel === label ? label : null;
 
 	return (
 		<AccountPageLayout title="API keys">
@@ -40,34 +42,32 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 				className="mt-5"
 				size="lg"
 				type="button"
-				disabled={isCreating || newKey !== null}
-				onClick={async () => {
-					setError(null);
-					setIsCreating(true);
-					try {
-						const result = await createKey({ data: {} });
-						if (!result.ok) {
-							setError(
-								"A key could not be created. Revoke an active key if you already have ten.",
-							);
-							return;
-						}
-						setNewKey(result.value.apiKey);
-						try {
-							await router.invalidate();
-						} catch {
-							setError(
-								"The key was created, but the key list could not be refreshed.",
-							);
-						}
-					} catch {
-						setError("A key could not be created. Try again.");
-					} finally {
-						setIsCreating(false);
-					}
-				}}
+				disabled={isSubmitting || newKey !== null}
+				onClick={() =>
+					void run(
+						"A key could not be created. Try again.",
+						async () => {
+							const result = await createKey({ data: {} });
+							if (!result.ok) {
+								setError(
+									"A key could not be created. Revoke an active key if you already have ten.",
+								);
+								return;
+							}
+							setNewKey(result.value.apiKey);
+							try {
+								await router.invalidate();
+							} catch {
+								setError(
+									"The key was created, but the key list could not be refreshed.",
+								);
+							}
+						},
+						"Creating…",
+					)
+				}
 			>
-				{isCreating ? "Creating…" : "Create key"}
+				{busyText("Creating…") ?? "Create key"}
 			</Button>
 			{newKey ? (
 				<ApiCredentialOnboarding
@@ -109,12 +109,27 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 											variant="link"
 											className="underline"
 											type="button"
-											onClick={async () => {
-												await revokeKey({ data: { prefix: key.prefix } });
-												await router.invalidate();
-											}}
+											disabled={isSubmitting}
+											onClick={() =>
+												void run(
+													"The key could not be revoked. Try again.",
+													async () => {
+														const result = await revokeKey({
+															data: { prefix: key.prefix },
+														});
+														if (!result.ok) {
+															setError(
+																"The key could not be revoked. Try again.",
+															);
+															return;
+														}
+														await router.invalidate();
+													},
+													"Revoking…",
+												)
+											}
 										>
-											Revoke
+											{busyText("Revoking…") ?? "Revoke"}
 										</Button>
 									) : null}
 								</td>

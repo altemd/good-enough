@@ -2,6 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
+import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
 
 import type { CurrentAccount } from "../../account-contract";
@@ -9,9 +10,18 @@ import { AccountPageLayout } from "../../ui/account-page-layout";
 import { changeAccountPassword } from "../account-access.functions";
 import { AccountFormField } from "./account-form-field";
 
+function messageFor(code: string) {
+	return code === "invalid_credentials"
+		? "The current password is incorrect."
+		: code === "invalid_input"
+			? "Use a new password of at least 15 characters."
+			: "Password could not be changed. Try again.";
+}
+
 export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 	const changePassword = useServerFn(changeAccountPassword);
 	const router = useRouter();
+	const { isSubmitting, error, run } = useSubmission();
 	const [feedback, setFeedback] = useState<{
 		kind: "success" | "error";
 		text: string;
@@ -26,25 +36,27 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 			) : null}
 			<form
 				className="mt-6 grid max-w-md gap-4"
-				onSubmit={async (event) => {
+				onSubmit={(event) => {
 					event.preventDefault();
-					setFeedback(null);
 					const form = new FormData(event.currentTarget);
-					const result = await changePassword({
-						data: {
-							currentPassword: String(form.get("currentPassword") ?? ""),
-							newPassword: String(form.get("newPassword") ?? ""),
-						},
-					});
-					if (!result.ok) {
-						setFeedback({
-							kind: "error",
-							text: "Password could not be changed.",
+					void run("Password could not be changed. Try again.", async () => {
+						setFeedback(null);
+						const result = await changePassword({
+							data: {
+								currentPassword: String(form.get("currentPassword") ?? ""),
+								newPassword: String(form.get("newPassword") ?? ""),
+							},
 						});
-						return;
-					}
-					setFeedback({ kind: "success", text: "Password changed." });
-					await router.invalidate();
+						if (!result.ok) {
+							setFeedback({
+								kind: "error",
+								text: messageFor(result.code),
+							});
+							return;
+						}
+						setFeedback({ kind: "success", text: "Password changed." });
+						await router.invalidate();
+					});
 				}}
 			>
 				<AccountFormField
@@ -64,7 +76,7 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 				/>
 				{feedback ? (
 					<p
-						role="alert"
+						role={feedback.kind === "error" ? "alert" : "status"}
 						className={
 							feedback.kind === "error"
 								? "text-destructive"
@@ -73,9 +85,13 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 					>
 						{feedback.text}
 					</p>
+				) : error ? (
+					<p role="alert" className="text-destructive">
+						{error}
+					</p>
 				) : null}
-				<Button size="lg" type="submit">
-					Change password
+				<Button size="lg" type="submit" disabled={isSubmitting}>
+					{isSubmitting ? "Changing password…" : "Change password"}
 				</Button>
 			</form>
 		</AccountPageLayout>

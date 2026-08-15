@@ -1,7 +1,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
 
+import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
 
 import { registerAccount } from "../account-access.functions";
@@ -11,8 +11,7 @@ import { AccountFormField } from "./account-form-field";
 export function RegistrationForm({ state }: { state: AccountEntryState }) {
 	const register = useServerFn(registerAccount);
 	const router = useRouter();
-	const [error, setError] = useState<string | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const { isSubmitting, error, setError, run } = useSubmission();
 
 	if (!state.configurationValid) {
 		return <p>Account configuration is invalid.</p>;
@@ -58,30 +57,25 @@ export function RegistrationForm({ state }: { state: AccountEntryState }) {
 			</div>
 			<form
 				className="mt-5 grid gap-4"
-				onSubmit={async (event) => {
+				onSubmit={(event) => {
 					event.preventDefault();
-					setError(null);
-					setIsSubmitting(true);
 					const form = new FormData(event.currentTarget);
-					try {
-						const result = await register({
-							data: {
-								username: String(form.get("username") ?? ""),
-								password: String(form.get("password") ?? ""),
-							},
-						});
-						if (!result.ok) {
-							setError(messageFor(result.code));
-							return;
-						}
-						await router.navigate({ to: "/account/api-keys" });
-					} catch {
-						setError(
-							"Registration could not finish. Your account may exist; try signing in before registering again.",
-						);
-					} finally {
-						setIsSubmitting(false);
-					}
+					void run(
+						"Registration could not finish. Your account may exist; try signing in before registering again.",
+						async () => {
+							const result = await register({
+								data: {
+									username: String(form.get("username") ?? ""),
+									password: String(form.get("password") ?? ""),
+								},
+							});
+							if (!result.ok) {
+								setError(messageFor(result.code));
+								return;
+							}
+							await router.navigate({ to: "/account/api-keys" });
+						},
+					);
 				}}
 			>
 				<AccountFormField

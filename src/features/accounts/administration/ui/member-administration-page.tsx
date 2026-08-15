@@ -2,6 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
+import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
 
 import { AccountPageLayout } from "../../ui/account-page-layout";
@@ -29,6 +30,9 @@ export function MemberAdministrationPage({
 	const [temporaryPassword, setTemporaryPassword] = useState<string | null>(
 		null,
 	);
+	const { isSubmitting, busyLabel, error, setError, run } = useSubmission();
+	const busyText = (label: string) =>
+		isSubmitting && busyLabel === label ? label : null;
 
 	return (
 		<AccountPageLayout title="Users">
@@ -40,6 +44,11 @@ export function MemberAdministrationPage({
 					secret={temporaryPassword}
 					onDismiss={() => setTemporaryPassword(null)}
 				/>
+			) : null}
+			{error ? (
+				<p role="alert" className="mt-4 text-sm text-destructive">
+					{error}
+				</p>
 			) : null}
 			<table className="mt-8 w-full text-left">
 				<thead>
@@ -61,34 +70,59 @@ export function MemberAdministrationPage({
 									variant="link"
 									className="underline"
 									type="button"
-									onClick={async () => {
-										await setDisabled({
-											data: {
-												memberId: member.id,
-												disabled: member.status === "active",
+									disabled={isSubmitting}
+									onClick={() =>
+										void run(
+											"The member could not be updated. Try again.",
+											async () => {
+												const result = await setDisabled({
+													data: {
+														memberId: member.id,
+														disabled: member.status === "active",
+													},
+												});
+												if (!result.ok) {
+													setError(
+														"This account can no longer manage members.",
+													);
+													return;
+												}
+												await router.invalidate();
 											},
-										});
-										await router.invalidate();
-									}}
+											"Updating…",
+										)
+									}
 								>
-									{member.status === "active" ? "Disable" : "Enable"}
+									{busyText("Updating…") ??
+										(member.status === "active" ? "Disable" : "Enable")}
 								</Button>
 								{member.status === "active" ? (
 									<Button
 										variant="link"
 										className="underline"
 										type="button"
-										onClick={async () => {
-											const result = await issuePassword({
-												data: { memberId: member.id },
-											});
-											if (result.ok) {
-												setTemporaryPassword(result.value.temporaryPassword);
-											}
-											await router.invalidate();
-										}}
+										disabled={isSubmitting}
+										onClick={() =>
+											void run(
+												"The temporary password could not be issued. Try again.",
+												async () => {
+													const result = await issuePassword({
+														data: { memberId: member.id },
+													});
+													if (!result.ok) {
+														setError(
+															"The temporary password could not be issued. Try again.",
+														);
+														return;
+													}
+													setTemporaryPassword(result.value.temporaryPassword);
+													await router.invalidate();
+												},
+												"Resetting…",
+											)
+										}
 									>
-										Reset password
+										{busyText("Resetting…") ?? "Reset password"}
 									</Button>
 								) : null}
 							</td>
