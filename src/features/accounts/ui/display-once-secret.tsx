@@ -27,7 +27,7 @@ export function DisplayOnceSecret({
 	}
 
 	return (
-		<section className="mt-5 rounded border border-amber-500 bg-amber-50 p-4">
+		<section className="mt-5 rounded border border-warning bg-warning-surface p-4">
 			<h2 className="font-bold">{title}</h2>
 			<p>{description}</p>
 			<code className="my-3 block break-all">{secret}</code>

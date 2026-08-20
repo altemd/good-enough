@@ -15,7 +15,11 @@ Node adapter.
 - `routes/` — file routes (see `routes/AGENTS.md`).
 - `features/` — vertical feature ownership. One AGENTS.md per feature.
 - `components/`, `lib/` — shared client primitives.
-- `styles.css` — Tailwind 4 entry (excluded from Biome by design).
+- `styles.css` — Tailwind 4 entry (excluded from Biome by design). Defines
+  semantic token families beyond the base shadcn set: warning/success/info/
+  destructive surfaces for light panels and badges, and a `terminal` family
+  (near-black surfaces, muted/faint text, tone colors) for console-style
+  panels. Feature code must use these tokens, never raw palette classes.
 
 ## Invariants
 

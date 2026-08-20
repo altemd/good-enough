@@ -140,7 +140,7 @@ export function DemoChat({
 				<div>
 					<div className="flex items-center gap-2">
 						<h2 className="font-semibold">Live demo chat</h2>
-						<span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+						<span className="rounded-full bg-success-surface-strong px-2 py-0.5 text-xs font-medium text-success-foreground">
 							Ephemeral
 						</span>
 					</div>

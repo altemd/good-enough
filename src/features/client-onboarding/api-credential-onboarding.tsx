@@ -73,18 +73,18 @@ export function ApiCredentialOnboarding({
 	}
 
 	return (
-		<section className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 shadow-xl shadow-black/5 sm:p-6">
+		<section className="rounded-3xl border border-warning/30 bg-warning-surface/80 p-5 shadow-xl shadow-black/5 sm:p-6">
 			<h2 className="font-semibold">Temporary API key</h2>
-			<p className="mt-1 text-sm leading-6 text-amber-950/80">
+			<p className="mt-1 text-sm leading-6 text-warning-foreground/80">
 				Copy it before dismissing this panel. It cannot be shown again.
 			</p>
 			<div className="relative my-3">
-				<code className="block break-all rounded-xl border border-amber-200 bg-white/80 p-3 pr-14 text-sm">
+				<code className="block break-all rounded-xl border border-warning/30 bg-background/80 p-3 pr-14 text-sm">
 					{apiKey}
 				</code>
 				<button
 					type="button"
-					className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-950/70 shadow-sm transition-colors hover:bg-amber-100 hover:text-amber-950 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
+					className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-lg border border-warning/30 bg-background text-warning-foreground/70 shadow-sm transition-colors hover:bg-warning-surface-strong hover:text-warning-foreground focus-visible:ring-2 focus-visible:ring-warning focus-visible:outline-none"
 					aria-label={
 						keyCopyState === "copied"
 							? "Temporary API key copied"
@@ -106,7 +106,7 @@ export function ApiCredentialOnboarding({
 				</p>
 			) : null}
 
-			<div className="mt-5 border-t border-amber-200 pt-5">
+			<div className="mt-5 border-t border-warning/30 pt-5">
 				<h3 className="font-semibold">OpenCode configuration</h3>
 				{discovery.status === "loading" ? (
 					<p className="mt-3 text-sm" aria-live="polite">
@@ -134,12 +134,12 @@ export function ApiCredentialOnboarding({
 							className="relative mt-3"
 							aria-label="OpenCode configuration"
 						>
-							<pre className="max-h-72 overflow-auto rounded-xl bg-slate-950 p-4 pr-14 text-xs text-slate-50">
+							<pre className="max-h-72 overflow-auto rounded-xl bg-terminal p-4 pr-14 text-xs text-terminal-fg">
 								<code>{configJson}</code>
 							</pre>
 							<button
 								type="button"
-								className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-300 shadow-sm transition-colors hover:bg-slate-800 hover:text-white focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+								className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-lg border border-terminal-raised-border bg-terminal-raised text-terminal-muted shadow-sm transition-colors hover:bg-terminal-border hover:text-terminal-fg focus-visible:ring-2 focus-visible:ring-terminal-info focus-visible:outline-none"
 								aria-label={
 									configCopyState === "copied"
 										? "OpenCode configuration copied"
@@ -163,19 +163,19 @@ export function ApiCredentialOnboarding({
 					</>
 				) : null}
 
-				<p className="mt-4 text-xs leading-5 text-amber-950/80">
+				<p className="mt-4 text-xs leading-5 text-warning-foreground/80">
 					Save the complete JSON as
 					<code className="ml-1">~/.config/opencode/opencode.json</code>, or as
 					<code className="ml-1">opencode.json</code> in a project. If a config
 					already exists, merge its <code>provider.good-enough</code> entry.
 				</p>
-				<p className="mt-2 text-xs leading-5 font-medium text-amber-900">
+				<p className="mt-2 text-xs leading-5 font-medium text-warning-foreground">
 					The JSON contains the plaintext API key. Do not commit, share, or
 					publish it.
 				</p>
 			</div>
 
-			<p className="mt-5 border-t border-amber-200 pt-4 text-xs leading-5 text-amber-950/75">
+			<p className="mt-5 border-t border-warning/30 pt-4 text-xs leading-5 text-warning-foreground/75">
 				Inference content is not persisted. Live request timing is not replayed
 				after refresh.
 			</p>

@@ -193,11 +193,11 @@ function DemoInvitation() {
 function PrivacySummary() {
 	return (
 		<section
-			className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-emerald-950 shadow-xs"
+			className="rounded-2xl border border-success/30 bg-success-surface/80 p-5 text-success-foreground shadow-xs"
 			aria-labelledby="privacy-title"
 		>
 			<div className="flex items-center gap-2">
-				<ShieldCheck className="size-5 text-emerald-700" />
+				<ShieldCheck className="size-5 text-success" />
 				<h2 id="privacy-title" className="font-semibold">
 					What gets stored?
 				</h2>
@@ -206,7 +206,7 @@ function PrivacySummary() {
 				Good Enough does not persist inference content: your prompts, responses,
 				reasoning, and tool arguments are not saved.
 			</p>
-			<ul className="mt-3 grid gap-2 text-xs leading-5 text-emerald-900/80 xl:grid-cols-2 xl:gap-x-6">
+			<ul className="mt-3 grid gap-2 text-xs leading-5 text-success-foreground/80 xl:grid-cols-2 xl:gap-x-6">
 				<li>
 					The temporary key and chat history exist only in this browser tab;
 					refreshing the page or dismissing the key clears them.
@@ -287,37 +287,37 @@ function TelemetryPreview() {
 	];
 	return (
 		<section
-			className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 shadow-2xl"
+			className="overflow-hidden rounded-2xl border border-terminal-border bg-terminal text-terminal-fg shadow-2xl"
 			aria-label="Example request telemetry preview"
 		>
-			<header className="flex items-center border-b border-slate-800 px-4 py-3">
+			<header className="flex items-center border-b border-terminal-border px-4 py-3">
 				<div className="flex gap-1.5" aria-hidden="true">
-					<span className="size-2.5 rounded-full bg-rose-400" />
-					<span className="size-2.5 rounded-full bg-amber-300" />
-					<span className="size-2.5 rounded-full bg-emerald-400" />
+					<span className="size-2.5 rounded-full bg-terminal-error" />
+					<span className="size-2.5 rounded-full bg-terminal-warning" />
+					<span className="size-2.5 rounded-full bg-terminal-success" />
 				</div>
-				<p className="ml-3 font-mono text-xs text-slate-400">
+				<p className="ml-3 font-mono text-xs text-terminal-muted">
 					example preview · synthetic events
 				</p>
 			</header>
 			<ol className="space-y-1 p-3 font-mono text-xs">
 				{lines.map((line, index) => (
 					<li
-						className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl px-3 py-3 hover:bg-white/5"
+						className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl px-3 py-3 hover:bg-terminal-hover"
 						key={line.title}
 					>
-						<span className="text-slate-600">12:04:0{index + 1}Z</span>
+						<span className="text-terminal-faint">12:04:0{index + 1}Z</span>
 						<div>
-							<p className="flex items-center gap-2 text-sky-300 [&_svg]:size-3.5">
+							<p className="flex items-center gap-2 text-terminal-info [&_svg]:size-3.5">
 								{line.icon}
 								{line.title}
 							</p>
-							<p className="mt-1 text-slate-400">{line.detail}</p>
+							<p className="mt-1 text-terminal-muted">{line.detail}</p>
 						</div>
 					</li>
 				))}
 			</ol>
-			<p className="border-t border-slate-800 px-4 py-3 font-mono text-[11px] text-slate-500">
+			<p className="border-t border-terminal-border px-4 py-3 font-mono text-[11px] text-terminal-faint">
 				No prompt, response, reasoning, credential, or username is included.
 			</p>
 		</section>

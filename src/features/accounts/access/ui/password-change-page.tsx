@@ -30,7 +30,7 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 	return (
 		<AccountPageLayout title="Security">
 			{account.mustChangePassword ? (
-				<p className="mt-4 rounded border border-amber-500 bg-amber-50 p-3">
+				<p className="mt-4 rounded border border-warning bg-warning-surface p-3">
 					You must replace the temporary password before using account features.
 				</p>
 			) : null}
@@ -78,9 +78,7 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 					<p
 						role={feedback.kind === "error" ? "alert" : "status"}
 						className={
-							feedback.kind === "error"
-								? "text-destructive"
-								: "text-emerald-700"
+							feedback.kind === "error" ? "text-destructive" : "text-success"
 						}
 					>
 						{feedback.text}

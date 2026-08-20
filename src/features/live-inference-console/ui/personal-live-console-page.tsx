@@ -98,20 +98,20 @@ export function PersonalLiveConsolePage({
 
 			<section
 				aria-label="Personal live inference activity"
-				className="mt-6 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-slate-100 shadow-sm"
+				className="mt-6 overflow-hidden rounded-xl border border-terminal-border bg-terminal text-terminal-fg shadow-sm"
 			>
-				<header className="flex items-center border-b border-slate-800 px-4 py-3">
+				<header className="flex items-center border-b border-terminal-border px-4 py-3">
 					<div className="flex gap-1.5" aria-hidden="true">
-						<span className="size-2.5 rounded-full bg-rose-400" />
-						<span className="size-2.5 rounded-full bg-amber-300" />
-						<span className="size-2.5 rounded-full bg-emerald-400" />
+						<span className="size-2.5 rounded-full bg-terminal-error" />
+						<span className="size-2.5 rounded-full bg-terminal-warning" />
+						<span className="size-2.5 rounded-full bg-terminal-success" />
 					</div>
-					<p className="ml-3 font-mono text-xs text-slate-400">
+					<p className="ml-3 font-mono text-xs text-terminal-muted">
 						personal / live-only / max {PERSONAL_CONSOLE_MAX_LINES} lines
 					</p>
 					{lines.length > 0 ? (
 						<button
-							className="ml-auto text-xs text-slate-400 underline decoration-slate-600 underline-offset-4 hover:text-white"
+							className="ml-auto text-xs text-terminal-muted underline decoration-terminal-faint underline-offset-4 hover:text-terminal-fg"
 							type="button"
 							onClick={() => setLines([])}
 						>
@@ -122,10 +122,10 @@ export function PersonalLiveConsolePage({
 
 				{lines.length === 0 ? (
 					<div className="px-5 py-16 text-center font-mono">
-						<p className="text-sm text-slate-300">
+						<p className="text-sm text-terminal-fg">
 							Waiting for a personal request…
 						</p>
-						<p className="mt-2 text-xs text-slate-500">
+						<p className="mt-2 text-xs text-terminal-faint">
 							This page starts empty; past activity is not replayed.
 						</p>
 					</div>
@@ -145,9 +145,10 @@ export function PersonalLiveConsolePage({
 
 function ConnectionBadge({ state }: { state: ConnectionState }) {
 	const styles = {
-		connecting: "border-amber-200 bg-amber-50 text-amber-900",
-		disconnected: "border-rose-200 bg-rose-50 text-rose-900",
-		live: "border-sky-200 bg-sky-50 text-sky-900",
+		connecting: "border-warning/30 bg-warning-surface text-warning-foreground",
+		disconnected:
+			"border-destructive/30 bg-destructive-surface text-destructive-foreground",
+		live: "border-info/30 bg-info-surface text-info-foreground",
 	}[state];
 	return (
 		<output className={`rounded-full border px-3 py-1 font-medium ${styles}`}>
@@ -159,8 +160,8 @@ function ConnectionBadge({ state }: { state: ConnectionState }) {
 
 function ConsoleLine({ line }: { line: RenderedLine }) {
 	return (
-		<li className="grid gap-1 rounded-lg px-3 py-2 hover:bg-white/5 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
-			<div className="text-slate-500">
+		<li className="grid gap-1 rounded-lg px-3 py-2 hover:bg-terminal-hover sm:grid-cols-[5.5rem_minmax(0,1fr)]">
+			<div className="text-terminal-faint">
 				{line.occurredAt ? (
 					<time dateTime={line.occurredAt}>
 						{formatUtcClock(line.occurredAt)}
@@ -173,12 +174,12 @@ function ConsoleLine({ line }: { line: RenderedLine }) {
 				<p className={toneClassName(line.tone)}>
 					<span className="font-semibold">{line.title}</span>
 					{line.requestId ? (
-						<span className="ml-2 break-all text-slate-500">
+						<span className="ml-2 break-all text-terminal-faint">
 							{line.requestId}
 						</span>
 					) : null}
 				</p>
-				<p className="mt-1 break-words text-slate-400">
+				<p className="mt-1 break-words text-terminal-muted">
 					{line.details.join(" · ")}
 				</p>
 			</div>
@@ -188,11 +189,11 @@ function ConsoleLine({ line }: { line: RenderedLine }) {
 
 function toneClassName(tone: PersonalConsoleLine["tone"]): string {
 	return {
-		activity: "text-sky-300",
-		error: "text-rose-300",
-		muted: "text-slate-300",
-		success: "text-emerald-300",
-		warning: "text-amber-300",
+		activity: "text-terminal-info",
+		error: "text-terminal-error",
+		muted: "text-terminal-fg",
+		success: "text-terminal-success",
+		warning: "text-terminal-warning",
 	}[tone];
 }
 
