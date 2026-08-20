@@ -38,9 +38,7 @@ export function MemberAdministrationPage({
 	const [temporaryPassword, setTemporaryPassword] = useState<string | null>(
 		null,
 	);
-	const { isSubmitting, busyLabel, error, setError, run } = useSubmission();
-	const busyText = (label: string) =>
-		isSubmitting && busyLabel === label ? label : null;
+	const { isSubmitting, busyText, error, setError, run } = useSubmission();
 
 	return (
 		<PageLayout title="Users">

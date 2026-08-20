@@ -86,7 +86,7 @@ export function PersonalLiveConsolePage({
 				{connection === "disconnected" ? (
 					<button
 						type="button"
-						className="font-medium underline underline-offset-4"
+						className="rounded font-medium underline underline-offset-4 focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
 						onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
 					>
 						Try to reconnect
@@ -106,7 +106,7 @@ export function PersonalLiveConsolePage({
 				action={
 					lines.length > 0 ? (
 						<button
-							className="text-xs text-terminal-muted underline decoration-terminal-faint underline-offset-4 hover:text-terminal-fg"
+							className="rounded text-xs text-terminal-muted underline decoration-terminal-faint underline-offset-4 hover:text-terminal-fg focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
 							type="button"
 							onClick={() => setLines([])}
 						>

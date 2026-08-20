@@ -100,7 +100,7 @@ export function ApiCredentialOnboarding({
 						</p>
 						<button
 							type="button"
-							className="mt-2 underline"
+							className="mt-2 rounded underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
 							onClick={() => setDiscoveryAttempt((attempt) => attempt + 1)}
 						>
 							Retry model discovery
@@ -151,7 +151,7 @@ export function ApiCredentialOnboarding({
 
 			<button
 				type="button"
-				className="mt-4 text-sm underline"
+				className="mt-4 rounded text-sm underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
 				onClick={() => {
 					discoveryController.current?.abort();
 					onDismiss();

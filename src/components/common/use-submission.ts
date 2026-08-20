@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 export interface SubmissionController {
 	readonly isSubmitting: boolean;
 	readonly busyLabel: string | null;
+	readonly busyText: (label: string) => string | null;
 	readonly error: string | null;
 	setError(message: string | null): void;
 	run(
@@ -16,6 +17,11 @@ export function useSubmission(): SubmissionController {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [busyLabel, setBusyLabel] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+
+	const busyText = useCallback(
+		(label: string) => (isSubmitting && busyLabel === label ? label : null),
+		[isSubmitting, busyLabel],
+	);
 
 	const run = useCallback(
 		(
@@ -36,5 +42,5 @@ export function useSubmission(): SubmissionController {
 		[],
 	);
 
-	return { isSubmitting, busyLabel, error, setError, run };
+	return { isSubmitting, busyLabel, busyText, error, setError, run };
 }

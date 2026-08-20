@@ -31,6 +31,8 @@ and no server code here.
   contract.** Forms and pages that
   call a server function and show an error use this hook so error display and
   submit-state behavior stay consistent. Keep its public shape
-  (`{ isSubmitting, error, setError, run }`) stable; features build on it.
+  (`{ isSubmitting, busyLabel, busyText, error, setError, run }`) stable;
+  features build on it. `busyText(label)` returns the label only while that
+  label's request is in flight — use it for in-button busy text.
 - **Client-safe.** Everything in this directory ships to the browser. Do not
   import `*.server.ts` modules or Node APIs here.

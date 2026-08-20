@@ -12,6 +12,10 @@ only place demo credentials are minted into a browser session.
 | --- | --- |
 | `public-demo-route.tsx` | Route entry. Records one landing-page view per load (guarded by a ref) and wires the demo-token server function into the page. |
 | `public-demo-page.tsx` | Page state: authenticated account vs. anonymous demo, credential handling, model selection, and the chat composition. |
+| `landing-hero.tsx` | The hero: headline, pitch copy, and the demo-key start button. |
+| `demo-credential.ts` | `DemoCredential` shape and the failure-message mapping for demo-key issuance. |
+| `demo-invitation.tsx`, `privacy-summary.tsx` | Landing-page marketing sections: what the button does, what gets stored. |
+| `request-telemetry-pitch.tsx` | The optional-account pitch and the synthetic terminal preview of the live console. |
 | `public-auth-controls.tsx` | Sign-in / register / new-account controls shown to non-owners. |
 | `demo-chat.tsx` | Chat surface. Owns the `AbortController` and aborts the active stream on unmount. |
 | `demo-chat-transport.ts` | The fetch/SSE client for the demo: streams a generation, surfaces status, and respects the abort signal. |

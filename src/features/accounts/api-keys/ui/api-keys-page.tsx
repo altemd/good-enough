@@ -32,9 +32,7 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 	const revokeKey = useServerFn(revokePersonalApiKey);
 	const router = useRouter();
 	const [newKey, setNewKey] = useState<string | null>(null);
-	const { isSubmitting, busyLabel, error, setError, run } = useSubmission();
-	const busyText = (label: string) =>
-		isSubmitting && busyLabel === label ? label : null;
+	const { isSubmitting, busyText, error, setError, run } = useSubmission();
 
 	return (
 		<PageLayout title="API keys">
@@ -85,7 +83,7 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 				/>
 			) : null}
 			{error ? (
-				<p role="alert" className="mt-4 text-destructive">
+				<p role="alert" className="mt-4 text-sm text-destructive">
 					{error}
 				</p>
 			) : null}

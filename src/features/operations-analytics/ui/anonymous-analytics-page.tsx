@@ -47,20 +47,20 @@ export function AnonymousAnalyticsPage({
 					<Table className="min-w-[48rem] text-sm">
 						<TableHeader>
 							<TableRow>
-								<TableHead className="pr-4 whitespace-nowrap">Hour</TableHead>
+								<TableHead className="whitespace-nowrap">Hour</TableHead>
 								<TableHead>Views</TableHead>
 								<TableHead>Keys</TableHead>
 								<TableHead>Started</TableHead>
 								<TableHead>Completed</TableHead>
 								<TableHead>Rejected</TableHead>
 								<TableHead>Failed</TableHead>
-								<TableHead className="pl-2">Cancelled</TableHead>
+								<TableHead>Cancelled</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{summary.recentBuckets.map((bucket) => (
 								<TableRow key={bucket.bucketStartedAt}>
-									<TableCell className="pr-4 whitespace-nowrap">
+									<TableCell className="whitespace-nowrap">
 										{formatHour(bucket.bucketStartedAt)}
 									</TableCell>
 									<TableCell>{bucket.landingPageLoads}</TableCell>
@@ -69,9 +69,7 @@ export function AnonymousAnalyticsPage({
 									<TableCell>{bucket.demoInferenceCompleted}</TableCell>
 									<TableCell>{bucket.demoInferenceRejected}</TableCell>
 									<TableCell>{bucket.demoInferenceFailed}</TableCell>
-									<TableCell className="pl-2">
-										{bucket.demoInferenceCancelled}
-									</TableCell>
+									<TableCell>{bucket.demoInferenceCancelled}</TableCell>
 								</TableRow>
 							))}
 						</TableBody>
