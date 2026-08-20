@@ -3,9 +3,12 @@ import { useServerFn } from "@tanstack/react-start";
 
 import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
+import { PageLayout } from "#/components/ui/page-layout";
 
-import { bootstrapAccount } from "../account-access.functions";
-import { AccessPage, type AccountEntryState } from "./access-page";
+import {
+	type AccountEntryState,
+	bootstrapAccount,
+} from "../account-access.functions";
 import { AccountFormField } from "./account-form-field";
 
 export function SetupPage({ state }: { state: AccountEntryState }) {
@@ -15,22 +18,22 @@ export function SetupPage({ state }: { state: AccountEntryState }) {
 
 	if (!state.configurationValid) {
 		return (
-			<AccessPage title="Setup unavailable">
+			<PageLayout title="Setup unavailable" width="narrow">
 				<p>Account configuration is invalid.</p>
-			</AccessPage>
+			</PageLayout>
 		);
 	}
 	if (!state.setupRequired) {
 		return (
-			<AccessPage title="Setup complete">
+			<PageLayout title="Setup complete" width="narrow">
 				<p>The administrator already exists.</p>
 				<Link to="/login">Sign in</Link>
-			</AccessPage>
+			</PageLayout>
 		);
 	}
 
 	return (
-		<AccessPage title="Create administrator">
+		<PageLayout title="Create administrator" width="narrow">
 			<p>This trusted setup works only while the account database is empty.</p>
 			<form
 				className="mt-6 grid max-w-md gap-4"
@@ -83,7 +86,7 @@ export function SetupPage({ state }: { state: AccountEntryState }) {
 					{isSubmitting ? "Creating administrator…" : "Create administrator"}
 				</Button>
 			</form>
-		</AccessPage>
+		</PageLayout>
 	);
 }
 

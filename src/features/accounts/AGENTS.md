@@ -15,7 +15,7 @@ administrator flows. Persistence is SQLite through Node's built-in
 | `administration/` | Member administration (state, admin-issued temporary passwords), host-authorized sole-administrator recovery. `ui/member-administration-page.tsx` is admin-only. |
 | `sessions/` | Browser-session persistence, cookie policy, the account-authorization middleware used by every protected server function, the session function runtime, and `ui/authenticated-layout.tsx`. |
 | `testing/` | `account-test-context.ts`, the shared integration-test harness. Test-only; do not import from runtime code. |
-| `ui/` | Shared account UI: `account-page-layout.tsx` and `display-once-secret.tsx` (the display-once credential panel shared by personal and demo flows). |
+| `ui/` | Shared account UI: `display-once-secret.tsx` (the display-once credential panel shared by personal and demo flows). Page shells come from `#/components/ui/page-layout`. |
 | root files | Shared contracts and infrastructure, below. |
 
 ## Root shared files

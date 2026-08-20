@@ -1,6 +1,7 @@
 import { RotateCcw } from "lucide-react";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 
+import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import {
 	NativeSelect,
@@ -140,9 +141,7 @@ export function DemoChat({
 				<div>
 					<div className="flex items-center gap-2">
 						<h2 className="font-semibold">Live demo chat</h2>
-						<span className="rounded-full bg-success-surface-strong px-2 py-0.5 text-xs font-medium text-success-foreground">
-							Ephemeral
-						</span>
+						<Badge tone="success">Ephemeral</Badge>
 					</div>
 					<p className="mt-1 text-xs text-muted-foreground">
 						This tab keeps the complete conversation. Refreshing or dismissing

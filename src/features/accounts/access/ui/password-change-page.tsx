@@ -5,8 +5,9 @@ import { useState } from "react";
 import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
 
+import { PageLayout } from "#/components/ui/page-layout";
+
 import type { CurrentAccount } from "../../account-contract";
-import { AccountPageLayout } from "../../ui/account-page-layout";
 import { changeAccountPassword } from "../account-access.functions";
 import { AccountFormField } from "./account-form-field";
 
@@ -28,7 +29,7 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 	} | null>(null);
 
 	return (
-		<AccountPageLayout title="Security">
+		<PageLayout title="Security">
 			{account.mustChangePassword ? (
 				<p className="mt-4 rounded border border-warning bg-warning-surface p-3">
 					You must replace the temporary password before using account features.
@@ -92,6 +93,6 @@ export function PasswordChangePage({ account }: { account: CurrentAccount }) {
 					{isSubmitting ? "Changing password…" : "Change password"}
 				</Button>
 			</form>
-		</AccountPageLayout>
+		</PageLayout>
 	);
 }

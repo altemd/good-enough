@@ -4,8 +4,16 @@ import { useState } from "react";
 
 import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
+import { PageLayout } from "#/components/ui/page-layout";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "#/components/ui/table";
 
-import { AccountPageLayout } from "../../ui/account-page-layout";
 import { DisplayOnceSecret } from "../../ui/display-once-secret";
 import {
 	issueMemberTemporaryPassword,
@@ -35,7 +43,7 @@ export function MemberAdministrationPage({
 		isSubmitting && busyLabel === label ? label : null;
 
 	return (
-		<AccountPageLayout title="Users">
+		<PageLayout title="Users">
 			{temporaryPassword ? (
 				<DisplayOnceSecret
 					key={temporaryPassword}
@@ -50,25 +58,27 @@ export function MemberAdministrationPage({
 					{error}
 				</p>
 			) : null}
-			<div className="mt-8 overflow-x-auto">
-				<table className="w-full text-left">
-					<thead>
-						<tr>
-							<th scope="col">Username</th>
-							<th scope="col">Status</th>
-							<th scope="col">Password</th>
-							<th scope="col">
+			<div className="mt-8">
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Username</TableHead>
+							<TableHead>Status</TableHead>
+							<TableHead>Password</TableHead>
+							<TableHead>
 								<span className="sr-only">Actions</span>
-							</th>
-						</tr>
-					</thead>
-					<tbody>
+							</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
 						{members.map((member) => (
-							<tr className="border-t" key={member.id}>
-								<td className="py-3">{member.username}</td>
-								<td>{member.status}</td>
-								<td>{member.mustChangePassword ? "temporary" : "set"}</td>
-								<td className="flex gap-4 py-3">
+							<TableRow key={member.id}>
+								<TableCell>{member.username}</TableCell>
+								<TableCell>{member.status}</TableCell>
+								<TableCell>
+									{member.mustChangePassword ? "temporary" : "set"}
+								</TableCell>
+								<TableCell className="flex gap-4">
 									<Button
 										variant="link"
 										className="underline"
@@ -130,12 +140,12 @@ export function MemberAdministrationPage({
 											{busyText("Resetting…") ?? "Reset password"}
 										</Button>
 									) : null}
-								</td>
-							</tr>
+								</TableCell>
+							</TableRow>
 						))}
-					</tbody>
-				</table>
+					</TableBody>
+				</Table>
 			</div>
-		</AccountPageLayout>
+		</PageLayout>
 	);
 }

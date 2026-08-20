@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
+import { PageLayout } from "#/components/ui/page-layout";
+import type { AccountEntryState } from "#/features/accounts/access/account-access.functions";
 
-import { AccessPage, type AccountEntryState } from "./access-page";
 import { RegistrationForm } from "./registration-form";
 
 export function RegisterPage({ state }: { state: AccountEntryState }) {
 	return (
-		<AccessPage title="Create account">
+		<PageLayout title="Create account" width="narrow">
 			<div className="mt-6 max-w-md">
 				<RegistrationForm state={state} />
 			</div>
@@ -15,6 +16,6 @@ export function RegisterPage({ state }: { state: AccountEntryState }) {
 					Sign in
 				</Link>
 			</p>
-		</AccessPage>
+		</PageLayout>
 	);
 }

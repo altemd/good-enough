@@ -15,8 +15,8 @@ import {
 	PersonalLiveConsolePage,
 } from "./personal-live-console-page";
 
-vi.mock("#/features/accounts/ui/account-page-layout", () => ({
-	AccountPageLayout: ({
+vi.mock("#/components/ui/page-layout", () => ({
+	PageLayout: ({
 		title,
 		children,
 	}: {

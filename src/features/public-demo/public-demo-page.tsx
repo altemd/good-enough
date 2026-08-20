@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { useSubmission } from "#/components/common/use-submission";
 import { Button, buttonVariants } from "#/components/ui/button";
-import type { AccountEntryState } from "#/features/accounts/access/ui/access-page";
+import { ConsoleFrame } from "#/components/ui/console-frame";
+import type { AccountEntryState } from "#/features/accounts/access/account-access.functions";
 import type {
 	AccountMutationResult,
 	CurrentAccount,
@@ -286,20 +287,10 @@ function TelemetryPreview() {
 		},
 	];
 	return (
-		<section
-			className="overflow-hidden rounded-2xl border border-terminal-border bg-terminal text-terminal-fg shadow-2xl"
-			aria-label="Example request telemetry preview"
+		<ConsoleFrame
+			title="example preview · synthetic events"
+			className="shadow-2xl"
 		>
-			<header className="flex items-center border-b border-terminal-border px-4 py-3">
-				<div className="flex gap-1.5" aria-hidden="true">
-					<span className="size-2.5 rounded-full bg-terminal-error" />
-					<span className="size-2.5 rounded-full bg-terminal-warning" />
-					<span className="size-2.5 rounded-full bg-terminal-success" />
-				</div>
-				<p className="ml-3 font-mono text-xs text-terminal-muted">
-					example preview · synthetic events
-				</p>
-			</header>
 			<ol className="space-y-1 p-3 font-mono text-xs">
 				{lines.map((line, index) => (
 					<li
@@ -320,7 +311,7 @@ function TelemetryPreview() {
 			<p className="border-t border-terminal-border px-4 py-3 font-mono text-[11px] text-terminal-faint">
 				No prompt, response, reasoning, credential, or username is included.
 			</p>
-		</section>
+		</ConsoleFrame>
 	);
 }
 

@@ -24,6 +24,12 @@ import { bootstrapAdministrator, getSetupState } from "./setup.server.ts";
 
 const authenticatedAccount = authorizeAccountFunction("authenticated");
 
+export interface AccountEntryState {
+	setupRequired: boolean;
+	registrationEnabled: boolean;
+	configurationValid: boolean;
+}
+
 interface CredentialsInput {
 	username: string;
 	password: string;

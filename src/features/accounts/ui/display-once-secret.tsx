@@ -1,8 +1,7 @@
 import { useState } from "react";
 
 import { Button } from "#/components/ui/button";
-
-type CopyState = "idle" | "copied" | "failed";
+import { CopyButton } from "#/components/ui/copy-button";
 
 export function DisplayOnceSecret({
 	title,
@@ -15,30 +14,20 @@ export function DisplayOnceSecret({
 	secret: string;
 	onDismiss: () => void;
 }) {
-	const [copyState, setCopyState] = useState<CopyState>("idle");
-
-	async function copySecret() {
-		try {
-			await navigator.clipboard.writeText(secret);
-			setCopyState("copied");
-		} catch {
-			setCopyState("failed");
-		}
-	}
+	const [copyFailed, setCopyFailed] = useState(false);
 
 	return (
 		<section className="mt-5 rounded border border-warning bg-warning-surface p-4">
 			<h2 className="font-bold">{title}</h2>
 			<p>{description}</p>
 			<code className="my-3 block break-all">{secret}</code>
-			<Button
-				variant="link"
-				className="underline"
-				type="button"
-				onClick={() => void copySecret()}
-			>
-				{copyState === "copied" ? "Copied" : "Copy"}
-			</Button>
+			<CopyButton
+				value={secret}
+				label="Copy"
+				copiedLabel="Copied"
+				onCopyError={() => setCopyFailed(true)}
+				className="size-8 hover:bg-warning-surface-strong"
+			/>
 			<Button
 				variant="link"
 				className="ml-5 underline"
@@ -47,7 +36,7 @@ export function DisplayOnceSecret({
 			>
 				Dismiss
 			</Button>
-			{copyState === "failed" ? (
+			{copyFailed ? (
 				<p role="alert" className="mt-3 text-sm text-destructive">
 					The secret could not be copied. Select it manually.
 				</p>

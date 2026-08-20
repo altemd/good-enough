@@ -1,6 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
-import type { AccountEntryState } from "#/features/accounts/access/ui/access-page";
+import type { AccountEntryState } from "#/features/accounts/access/account-access.functions";
 import type { CurrentAccount } from "#/features/accounts/account-contract";
 import { createDemoApiToken } from "#/features/accounts/api-keys/api-key.functions";
 import { recordLandingPageView } from "#/features/operations-analytics/anonymous-analytics.functions";

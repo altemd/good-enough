@@ -1,4 +1,13 @@
-import { AccountPageLayout } from "#/features/accounts/ui/account-page-layout";
+import { PageLayout } from "#/components/ui/page-layout";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "#/components/ui/table";
+
 import type { AnonymousAnalyticsSummary } from "../anonymous-analytics.server";
 
 export function AnonymousAnalyticsPage({
@@ -7,7 +16,7 @@ export function AnonymousAnalyticsPage({
 	summary: AnonymousAnalyticsSummary;
 }) {
 	return (
-		<AccountPageLayout title="Anonymous analytics">
+		<PageLayout title="Anonymous analytics">
 			<p className="mt-4 max-w-3xl leading-7 text-muted-foreground">
 				Anonymous aggregate totals are retained. Landing views are rendered page
 				views, not unique visitors, and no IP address, browser identifier,
@@ -34,40 +43,42 @@ export function AnonymousAnalyticsPage({
 			{summary.recentBuckets.length === 0 ? (
 				<p className="mt-4 text-muted-foreground">No activity recorded yet.</p>
 			) : (
-				<div className="mt-4 overflow-x-auto">
-					<table className="w-full min-w-[48rem] text-left text-sm">
-						<thead>
-							<tr className="border-b">
-								<th className="py-3 pr-4">Hour</th>
-								<th className="px-2 py-3">Views</th>
-								<th className="px-2 py-3">Keys</th>
-								<th className="px-2 py-3">Started</th>
-								<th className="px-2 py-3">Completed</th>
-								<th className="px-2 py-3">Rejected</th>
-								<th className="px-2 py-3">Failed</th>
-								<th className="pl-2 py-3">Cancelled</th>
-							</tr>
-						</thead>
-						<tbody>
+				<div className="mt-4">
+					<Table className="min-w-[48rem] text-sm">
+						<TableHeader>
+							<TableRow>
+								<TableHead className="pr-4 whitespace-nowrap">Hour</TableHead>
+								<TableHead>Views</TableHead>
+								<TableHead>Keys</TableHead>
+								<TableHead>Started</TableHead>
+								<TableHead>Completed</TableHead>
+								<TableHead>Rejected</TableHead>
+								<TableHead>Failed</TableHead>
+								<TableHead className="pl-2">Cancelled</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
 							{summary.recentBuckets.map((bucket) => (
-								<tr className="border-b" key={bucket.bucketStartedAt}>
-									<td className="py-3 pr-4 whitespace-nowrap">
+								<TableRow key={bucket.bucketStartedAt}>
+									<TableCell className="pr-4 whitespace-nowrap">
 										{formatHour(bucket.bucketStartedAt)}
-									</td>
-									<td className="px-2 py-3">{bucket.landingPageLoads}</td>
-									<td className="px-2 py-3">{bucket.demoCredentialsIssued}</td>
-									<td className="px-2 py-3">{bucket.demoInferenceStarted}</td>
-									<td className="px-2 py-3">{bucket.demoInferenceCompleted}</td>
-									<td className="px-2 py-3">{bucket.demoInferenceRejected}</td>
-									<td className="px-2 py-3">{bucket.demoInferenceFailed}</td>
-									<td className="pl-2 py-3">{bucket.demoInferenceCancelled}</td>
-								</tr>
+									</TableCell>
+									<TableCell>{bucket.landingPageLoads}</TableCell>
+									<TableCell>{bucket.demoCredentialsIssued}</TableCell>
+									<TableCell>{bucket.demoInferenceStarted}</TableCell>
+									<TableCell>{bucket.demoInferenceCompleted}</TableCell>
+									<TableCell>{bucket.demoInferenceRejected}</TableCell>
+									<TableCell>{bucket.demoInferenceFailed}</TableCell>
+									<TableCell className="pl-2">
+										{bucket.demoInferenceCancelled}
+									</TableCell>
+								</TableRow>
 							))}
-						</tbody>
-					</table>
+						</TableBody>
+					</Table>
 				</div>
 			)}
-		</AccountPageLayout>
+		</PageLayout>
 	);
 }
 

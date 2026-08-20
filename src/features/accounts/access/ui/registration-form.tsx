@@ -4,8 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
 
-import { registerAccount } from "../account-access.functions";
-import type { AccountEntryState } from "./access-page";
+import {
+	type AccountEntryState,
+	registerAccount,
+} from "../account-access.functions";
 import { AccountFormField } from "./account-form-field";
 
 export function RegistrationForm({ state }: { state: AccountEntryState }) {

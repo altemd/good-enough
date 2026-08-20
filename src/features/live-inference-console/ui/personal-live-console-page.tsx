@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
-import { AccountPageLayout } from "#/features/accounts/ui/account-page-layout";
+import { badgeVariants } from "#/components/ui/badge";
+import { ConsoleFrame } from "#/components/ui/console-frame";
+import { PageLayout } from "#/components/ui/page-layout";
+import { cn } from "#/lib/utils";
+
 import {
 	PERSONAL_CONSOLE_EVENT_NAMES,
 	type PersonalConsoleLine,
@@ -76,7 +80,7 @@ export function PersonalLiveConsolePage({
 	}, [createEventSource, connectionAttempt]);
 
 	return (
-		<AccountPageLayout title="Live inference console">
+		<PageLayout title="Live inference console">
 			<div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
 				<ConnectionBadge state={connection} />
 				{connection === "disconnected" ? (
@@ -96,30 +100,21 @@ export function PersonalLiveConsolePage({
 				replayed. Refreshing clears this tab.
 			</p>
 
-			<section
-				aria-label="Personal live inference activity"
-				className="mt-6 overflow-hidden rounded-xl border border-terminal-border bg-terminal text-terminal-fg shadow-sm"
-			>
-				<header className="flex items-center border-b border-terminal-border px-4 py-3">
-					<div className="flex gap-1.5" aria-hidden="true">
-						<span className="size-2.5 rounded-full bg-terminal-error" />
-						<span className="size-2.5 rounded-full bg-terminal-warning" />
-						<span className="size-2.5 rounded-full bg-terminal-success" />
-					</div>
-					<p className="ml-3 font-mono text-xs text-terminal-muted">
-						personal / live-only / max {PERSONAL_CONSOLE_MAX_LINES} lines
-					</p>
-					{lines.length > 0 ? (
+			<ConsoleFrame
+				title={`personal / live-only / max ${PERSONAL_CONSOLE_MAX_LINES} lines`}
+				className="mt-6"
+				action={
+					lines.length > 0 ? (
 						<button
-							className="ml-auto text-xs text-terminal-muted underline decoration-terminal-faint underline-offset-4 hover:text-terminal-fg"
+							className="text-xs text-terminal-muted underline decoration-terminal-faint underline-offset-4 hover:text-terminal-fg"
 							type="button"
 							onClick={() => setLines([])}
 						>
 							Clear this tab
 						</button>
-					) : null}
-				</header>
-
+					) : undefined
+				}
+			>
 				{lines.length === 0 ? (
 					<div className="px-5 py-16 text-center font-mono">
 						<p className="text-sm text-terminal-fg">
@@ -138,20 +133,19 @@ export function PersonalLiveConsolePage({
 						<ConsoleLine key={line.key} line={line} />
 					))}
 				</ol>
-			</section>
-		</AccountPageLayout>
+			</ConsoleFrame>
+		</PageLayout>
 	);
 }
 
 function ConnectionBadge({ state }: { state: ConnectionState }) {
-	const styles = {
-		connecting: "border-warning/30 bg-warning-surface text-warning-foreground",
-		disconnected:
-			"border-destructive/30 bg-destructive-surface text-destructive-foreground",
-		live: "border-info/30 bg-info-surface text-info-foreground",
-	}[state];
+	const tones = {
+		connecting: "warning",
+		disconnected: "error",
+		live: "info",
+	}[state] as "warning" | "error" | "info";
 	return (
-		<output className={`rounded-full border px-3 py-1 font-medium ${styles}`}>
+		<output className={cn(badgeVariants({ tone: tones }), "gap-1 px-3 py-1")}>
 			<span aria-hidden="true">● </span>
 			{state}
 		</output>

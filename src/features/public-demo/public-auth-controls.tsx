@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, X } from "lucide-react";
 
 import { buttonVariants } from "#/components/ui/button";
-import type { AccountEntryState } from "#/features/accounts/access/ui/access-page";
+import type { AccountEntryState } from "#/features/accounts/access/account-access.functions";
 import { LoginForm } from "#/features/accounts/access/ui/login-form";
 import { RegistrationForm } from "#/features/accounts/access/ui/registration-form";
 import type { CurrentAccount } from "#/features/accounts/account-contract";

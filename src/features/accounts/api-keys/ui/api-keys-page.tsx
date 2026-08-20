@@ -4,9 +4,17 @@ import { useState } from "react";
 
 import { useSubmission } from "#/components/common/use-submission";
 import { Button } from "#/components/ui/button";
+import { PageLayout } from "#/components/ui/page-layout";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "#/components/ui/table";
 import { ApiCredentialOnboarding } from "#/features/client-onboarding/api-credential-onboarding";
 
-import { AccountPageLayout } from "../../ui/account-page-layout";
 import {
 	createPersonalApiKey,
 	revokePersonalApiKey,
@@ -29,7 +37,7 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 		isSubmitting && busyLabel === label ? label : null;
 
 	return (
-		<AccountPageLayout title="API keys">
+		<PageLayout title="API keys">
 			<p className="mt-3">
 				Keys expire seven days after creation. Create a replacement before
 				updating a client.
@@ -86,31 +94,31 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 					No API keys yet. Create a key to start making requests.
 				</p>
 			) : (
-				<div className="mt-8 overflow-x-auto">
-					<table className="w-full text-left">
-						<thead>
-							<tr>
-								<th scope="col">Prefix</th>
-								<th scope="col">Created</th>
-								<th scope="col">Expires</th>
-								<th scope="col">State</th>
-								<th scope="col">
+				<div className="mt-8">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Prefix</TableHead>
+								<TableHead>Created</TableHead>
+								<TableHead>Expires</TableHead>
+								<TableHead>State</TableHead>
+								<TableHead>
 									<span className="sr-only">Actions</span>
-								</th>
-							</tr>
-						</thead>
-						<tbody>
+								</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
 							{keys.map((key) => (
-								<tr className="border-t" key={key.prefix}>
-									<td className="py-3 font-mono">{key.prefix}</td>
-									<td>
+								<TableRow key={key.prefix}>
+									<TableCell className="font-mono">{key.prefix}</TableCell>
+									<TableCell>
 										<LocalDateTime value={key.createdAt} />
-									</td>
-									<td>
+									</TableCell>
+									<TableCell>
 										<LocalDateTime value={key.expiresAt} />
-									</td>
-									<td>{key.state}</td>
-									<td>
+									</TableCell>
+									<TableCell>{key.state}</TableCell>
+									<TableCell>
 										{key.state === "active" ? (
 											<Button
 												variant="link"
@@ -139,14 +147,14 @@ export function ApiKeysPage({ keys }: { keys: PersonalApiKeyView[] }) {
 												{busyText("Revoking…") ?? "Revoke"}
 											</Button>
 										) : null}
-									</td>
-								</tr>
+									</TableCell>
+								</TableRow>
 							))}
-						</tbody>
-					</table>
+						</TableBody>
+					</Table>
 				</div>
 			)}
-		</AccountPageLayout>
+		</PageLayout>
 	);
 }
 

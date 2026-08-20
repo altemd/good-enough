@@ -1,6 +1,6 @@
-import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { CopyButton } from "#/components/ui/copy-button";
 import { discoverOpenAiModelIds } from "#/features/inference-gateway/openai-model-discovery";
 import { isAbortError } from "#/lib/errors";
 
@@ -10,8 +10,6 @@ type DiscoveryState =
 	| { status: "loading" }
 	| { status: "failed" }
 	| { status: "ready"; modelIds: string[] };
-
-type CopyState = "idle" | "copied" | "failed";
 
 export function ApiCredentialOnboarding({
 	apiKey,
@@ -26,8 +24,8 @@ export function ApiCredentialOnboarding({
 		status: "loading",
 	});
 	const [discoveryAttempt, setDiscoveryAttempt] = useState(0);
-	const [keyCopyState, setKeyCopyState] = useState<CopyState>("idle");
-	const [configCopyState, setConfigCopyState] = useState<CopyState>("idle");
+	const [keyCopyFailed, setKeyCopyFailed] = useState(false);
+	const [configCopyFailed, setConfigCopyFailed] = useState(false);
 	const discoveryController = useRef<AbortController | null>(null);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: the counter intentionally restarts discovery after an explicit retry.
@@ -63,15 +61,6 @@ export function ApiCredentialOnboarding({
 		[apiKey, discovery],
 	);
 
-	async function copy(value: string, setState: (state: CopyState) => void) {
-		try {
-			await navigator.clipboard.writeText(value);
-			setState("copied");
-		} catch {
-			setState("failed");
-		}
-	}
-
 	return (
 		<section className="rounded-3xl border border-warning/30 bg-warning-surface/80 p-5 shadow-xl shadow-black/5 sm:p-6">
 			<h2 className="font-semibold">Temporary API key</h2>
@@ -82,25 +71,15 @@ export function ApiCredentialOnboarding({
 				<code className="block break-all rounded-xl border border-warning/30 bg-background/80 p-3 pr-14 text-sm">
 					{apiKey}
 				</code>
-				<button
-					type="button"
-					className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-lg border border-warning/30 bg-background text-warning-foreground/70 shadow-sm transition-colors hover:bg-warning-surface-strong hover:text-warning-foreground focus-visible:ring-2 focus-visible:ring-warning focus-visible:outline-none"
-					aria-label={
-						keyCopyState === "copied"
-							? "Temporary API key copied"
-							: "Copy temporary API key"
-					}
-					title={keyCopyState === "copied" ? "Copied" : "Copy"}
-					onClick={() => void copy(apiKey, setKeyCopyState)}
-				>
-					{keyCopyState === "copied" ? (
-						<Check className="size-4" />
-					) : (
-						<Copy className="size-4" />
-					)}
-				</button>
+				<CopyButton
+					value={apiKey}
+					label="Copy temporary API key"
+					copiedLabel="Temporary API key copied"
+					onCopyError={() => setKeyCopyFailed(true)}
+					className="absolute top-2 right-2 size-9 rounded-lg border border-warning/30 bg-background text-warning-foreground/70 shadow-sm hover:bg-warning-surface-strong hover:text-warning-foreground focus-visible:ring-warning"
+				/>
 			</div>
-			{keyCopyState === "failed" ? (
+			{keyCopyFailed ? (
 				<p role="alert" className="mt-2 text-destructive">
 					The key could not be copied. Select it manually.
 				</p>
@@ -137,25 +116,15 @@ export function ApiCredentialOnboarding({
 							<pre className="max-h-72 overflow-auto rounded-xl bg-terminal p-4 pr-14 text-xs text-terminal-fg">
 								<code>{configJson}</code>
 							</pre>
-							<button
-								type="button"
-								className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-lg border border-terminal-raised-border bg-terminal-raised text-terminal-muted shadow-sm transition-colors hover:bg-terminal-border hover:text-terminal-fg focus-visible:ring-2 focus-visible:ring-terminal-info focus-visible:outline-none"
-								aria-label={
-									configCopyState === "copied"
-										? "OpenCode configuration copied"
-										: "Copy OpenCode configuration"
-								}
-								title={configCopyState === "copied" ? "Copied" : "Copy"}
-								onClick={() => void copy(configJson, setConfigCopyState)}
-							>
-								{configCopyState === "copied" ? (
-									<Check className="size-4" />
-								) : (
-									<Copy className="size-4" />
-								)}
-							</button>
+							<CopyButton
+								value={configJson}
+								label="Copy OpenCode configuration"
+								copiedLabel="OpenCode configuration copied"
+								onCopyError={() => setConfigCopyFailed(true)}
+								className="absolute top-2 right-2 size-9 rounded-lg border border-terminal-raised-border bg-terminal-raised text-terminal-muted shadow-sm hover:bg-terminal-border hover:text-terminal-fg focus-visible:ring-terminal-info"
+							/>
 						</section>
-						{configCopyState === "failed" ? (
+						{configCopyFailed ? (
 							<p role="alert" className="mt-2 text-destructive">
 								The JSON could not be copied. Select it manually.
 							</p>

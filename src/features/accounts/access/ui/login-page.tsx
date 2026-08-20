@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
 
-import { AccessPage } from "./access-page";
+import { PageLayout } from "#/components/ui/page-layout";
+
 import { LoginForm } from "./login-form";
 
 export function LoginPage() {
 	return (
-		<AccessPage title="Sign in">
+		<PageLayout title="Sign in" width="narrow">
 			<div className="mt-6 max-w-md">
 				<LoginForm />
 			</div>
@@ -15,6 +16,6 @@ export function LoginPage() {
 					Register
 				</Link>
 			</p>
-		</AccessPage>
+		</PageLayout>
 	);
 }
