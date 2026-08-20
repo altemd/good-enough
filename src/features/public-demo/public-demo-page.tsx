@@ -1,10 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Activity, Gauge, KeyRound, ShieldCheck, Timer } from "lucide-react";
 import { useState } from "react";
 
 import { useSubmission } from "#/components/common/use-submission";
-import { Button, buttonVariants } from "#/components/ui/button";
-import { ConsoleFrame } from "#/components/ui/console-frame";
 import type { AccountEntryState } from "#/features/accounts/access/account-access.functions";
 import type {
 	AccountMutationResult,
@@ -13,16 +10,12 @@ import type {
 import { ApiCredentialOnboarding } from "#/features/client-onboarding/api-credential-onboarding";
 
 import { DemoChat } from "./demo-chat";
-import {
-	PublicAuthControls,
-	PublicRegistrationControl,
-} from "./public-auth-controls";
-
-interface DemoCredential {
-	apiKey: string;
-	createdAt: number;
-	expiresAt: number;
-}
+import { type DemoCredential, messageForDemoFailure } from "./demo-credential";
+import { DemoInvitation } from "./demo-invitation";
+import { LandingHero } from "./landing-hero";
+import { PrivacySummary } from "./privacy-summary";
+import { PublicAuthControls } from "./public-auth-controls";
+import { RequestTelemetryPitch } from "./request-telemetry-pitch";
 
 interface PublicDemoPageProps {
 	account: CurrentAccount | null;
@@ -78,43 +71,11 @@ export function PublicDemoPage({
 				}
 			>
 				{credential ? null : (
-					<section className="lg:sticky lg:top-10">
-						<h1 className="max-w-2xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-6xl">
-							Are local models good enough?
-						</h1>
-						<p className="mt-5 max-w-lg text-lg leading-8 text-muted-foreground">
-							Good Enough is a personal project built to help you find out. It
-							runs local models on a 128 GB AMD Ryzen AI Max+ 395 (Strix Halo)
-							and exposes them through OpenAI- and Anthropic-compatible APIs.
-						</p>
-						<p className="mt-4 max-w-lg leading-7 text-muted-foreground">
-							The button generates a free temporary API key that works for one
-							hour. You can use it in the chat here or copy it into your own
-							client. No account or payment is required.
-						</p>
-						<Button
-							className="mt-7"
-							size="lg"
-							type="button"
-							disabled={isSubmitting || credential !== null}
-							onClick={startDemo}
-						>
-							<KeyRound data-icon="inline-start" />
-							{isSubmitting
-								? "Generating API key…"
-								: credential
-									? "API key ready"
-									: "Get a free one-hour API key"}
-						</Button>
-						{error ? (
-							<p
-								className="mt-5 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
-								role="alert"
-							>
-								{error}
-							</p>
-						) : null}
-					</section>
+					<LandingHero
+						isSubmitting={isSubmitting}
+						error={error}
+						onStartDemo={startDemo}
+					/>
 				)}
 
 				{credential ? (
@@ -164,180 +125,4 @@ export function PublicDemoPage({
 			)}
 		</main>
 	);
-}
-
-function DemoInvitation() {
-	return (
-		<aside className="rounded-3xl border bg-card p-6 text-card-foreground shadow-xl shadow-black/5 sm:p-8">
-			<div className="flex items-start gap-3">
-				<span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-muted">
-					<KeyRound className="size-5" />
-				</span>
-				<div>
-					<h2 className="font-semibold">What the button does</h2>
-					<p className="mt-2 text-sm leading-6 text-muted-foreground">
-						It creates an API key and shows it once in this browser tab. The key
-						can call the OpenAI- and Anthropic-compatible endpoints, and the
-						built-in chat uses the same API.
-					</p>
-				</div>
-			</div>
-			<p className="mt-7 rounded-2xl bg-muted/60 p-4 text-sm leading-6 text-muted-foreground">
-				The key is free, requires no account, and expires one hour after it is
-				created. Requests go to llama.cpp on this machine rather than to OpenAI
-				or Anthropic; compatibility refers to the API format.
-			</p>
-		</aside>
-	);
-}
-
-function PrivacySummary() {
-	return (
-		<section
-			className="rounded-2xl border border-success/30 bg-success-surface/80 p-5 text-success-foreground shadow-xs"
-			aria-labelledby="privacy-title"
-		>
-			<div className="flex items-center gap-2">
-				<ShieldCheck className="size-5 text-success" />
-				<h2 id="privacy-title" className="font-semibold">
-					What gets stored?
-				</h2>
-			</div>
-			<p className="mt-3 text-sm leading-6">
-				Good Enough does not persist inference content: your prompts, responses,
-				reasoning, and tool arguments are not saved.
-			</p>
-			<ul className="mt-3 grid gap-2 text-xs leading-5 text-success-foreground/80 xl:grid-cols-2 xl:gap-x-6">
-				<li>
-					The temporary key and chat history exist only in this browser tab;
-					refreshing the page or dismissing the key clears them.
-				</li>
-				<li>
-					If you create an account, the server stores only the records needed
-					for the account, session, and API keys.
-				</li>
-				<li>
-					Anonymous hourly counts of rendered landing views, demo keys, and demo
-					request outcomes are retained as aggregate metrics. They contain no
-					identifiers or inference content.
-				</li>
-			</ul>
-		</section>
-	);
-}
-
-function RequestTelemetryPitch({
-	account,
-	entryState,
-}: {
-	account: CurrentAccount | null;
-	entryState: AccountEntryState;
-}) {
-	return (
-		<section className="border-t bg-background/75">
-			<div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:py-24">
-				<div>
-					<p className="text-sm font-medium text-muted-foreground">
-						Optional account
-					</p>
-					<h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-						Seven-day API keys and live request timing
-					</h2>
-					<p className="mt-4 max-w-xl leading-7 text-muted-foreground">
-						A free account lets you create personal API keys that last seven
-						days. It also includes a live view of request timing—TTFT, duration,
-						token counts, processing and generation speed, cache reuse, and
-						capacity. The console does not include inference content and starts
-						empty whenever the page is refreshed. There is no paid tier.
-					</p>
-					<div className="mt-6">
-						{account ? (
-							<Link
-								className={buttonVariants({ variant: "outline", size: "lg" })}
-								to="/account/live-console"
-							>
-								Open live console
-							</Link>
-						) : (
-							<PublicRegistrationControl
-								state={entryState}
-								label="Create a free account"
-							/>
-						)}
-					</div>
-				</div>
-				<TelemetryPreview />
-			</div>
-		</section>
-	);
-}
-
-function TelemetryPreview() {
-	const lines = [
-		{
-			icon: <Activity />,
-			title: "request accepted",
-			detail: "chat · admitted",
-		},
-		{ icon: <Timer />, title: "first output", detail: "TTFT 438 ms" },
-		{
-			icon: <Gauge />,
-			title: "request complete",
-			detail: "1.8 s · 42 tokens · 38.6 tok/s · cache reused",
-		},
-	];
-	return (
-		<ConsoleFrame
-			title="example preview · synthetic events"
-			className="shadow-2xl"
-		>
-			<ol className="space-y-1 p-3 font-mono text-xs">
-				{lines.map((line, index) => (
-					<li
-						className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl px-3 py-3 hover:bg-terminal-hover"
-						key={line.title}
-					>
-						<span className="text-terminal-faint">12:04:0{index + 1}Z</span>
-						<div>
-							<p className="flex items-center gap-2 text-terminal-info [&_svg]:size-3.5">
-								{line.icon}
-								{line.title}
-							</p>
-							<p className="mt-1 text-terminal-muted">{line.detail}</p>
-						</div>
-					</li>
-				))}
-			</ol>
-			<p className="border-t border-terminal-border px-4 py-3 font-mono text-[11px] text-terminal-faint">
-				No prompt, response, reasoning, credential, or username is included.
-			</p>
-		</ConsoleFrame>
-	);
-}
-
-function messageForDemoFailure(
-	result: Extract<AccountMutationResult<DemoCredential>, { ok: false }>,
-) {
-	const retry = result.retryAfterSeconds
-		? ` Try again in about ${formatRetry(result.retryAfterSeconds)}.`
-		: "";
-	if (result.code === "rate_limited") {
-		return `Too many demo starts were requested.${retry}`;
-	}
-	if (result.code === "capacity_reached") {
-		return `All temporary demo credentials are currently allocated.${retry}`;
-	}
-	if (result.code === "setup_required") {
-		return "The demo is not ready until the operator completes setup.";
-	}
-	if (result.code === "demo_disabled") {
-		return "New public demos are temporarily disabled.";
-	}
-	return "The demo could not be started. Try again later.";
-}
-
-function formatRetry(seconds: number) {
-	if (seconds < 60) return `${seconds} seconds`;
-	const minutes = Math.ceil(seconds / 60);
-	return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
 }

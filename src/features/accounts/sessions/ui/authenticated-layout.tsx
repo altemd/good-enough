@@ -1,5 +1,6 @@
 import { Link, Outlet, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import type { ReactNode } from "react";
 
 import { Button } from "#/components/ui/button";
 
@@ -13,23 +14,26 @@ export function AuthenticatedLayout({ account }: { account: CurrentAccount }) {
 	return (
 		<>
 			<header className="border-b px-8 py-4">
-				<nav className="mx-auto flex max-w-5xl items-center gap-5">
+				<nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2">
 					<Link className="font-bold" to="/account">
 						Good Enough
 					</Link>
-					<Link to="/account/live-console">Live console</Link>
-					<Link to="/account/api-keys">API keys</Link>
-					<Link to="/account/security">Security</Link>
+					<AccountNavLink to="/account/live-console">
+						Live console
+					</AccountNavLink>
+					<AccountNavLink to="/account/api-keys">API keys</AccountNavLink>
+					<AccountNavLink to="/account/security">Security</AccountNavLink>
 					{account.role === "admin" ? (
 						<>
-							<Link to="/admin/analytics">Analytics</Link>
-							<Link to="/admin/users">Users</Link>
+							<AccountNavLink to="/admin/analytics">Analytics</AccountNavLink>
+							<AccountNavLink to="/admin/users">Users</AccountNavLink>
 						</>
 					) : null}
-					<span className="ml-auto">{account.username}</span>
+					<span className="ml-auto text-sm text-muted-foreground">
+						{account.username}
+					</span>
 					<Button
-						variant="link"
-						className="underline"
+						variant="ghost"
 						type="button"
 						onClick={async () => {
 							await logout();
@@ -42,5 +46,16 @@ export function AuthenticatedLayout({ account }: { account: CurrentAccount }) {
 			</header>
 			<Outlet />
 		</>
+	);
+}
+
+function AccountNavLink({ to, children }: { to: string; children: ReactNode }) {
+	return (
+		<Link
+			className="text-sm text-muted-foreground transition-colors hover:text-foreground [&.active]:font-medium [&.active]:text-foreground"
+			to={to}
+		>
+			{children}
+		</Link>
 	);
 }
