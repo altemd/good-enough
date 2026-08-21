@@ -36,8 +36,12 @@ export function AuthenticatedLayout({ account }: { account: CurrentAccount }) {
 						variant="ghost"
 						type="button"
 						onClick={async () => {
-							await logout();
-							await router.navigate({ to: "/", replace: true });
+							try {
+								await logout();
+								await router.navigate({ to: "/", replace: true });
+							} catch {
+								await router.invalidate();
+							}
 						}}
 					>
 						Sign out

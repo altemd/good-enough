@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export interface SubmissionController {
 	readonly isSubmitting: boolean;
@@ -17,6 +17,7 @@ export function useSubmission(): SubmissionController {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [busyLabel, setBusyLabel] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const pendingRuns = useRef(0);
 
 	const busyText = useCallback(
 		(label: string) => (isSubmitting && busyLabel === label ? label : null),
@@ -29,14 +30,18 @@ export function useSubmission(): SubmissionController {
 			operation: () => Promise<void>,
 			label: string | undefined,
 		) => {
+			pendingRuns.current += 1;
 			setError(null);
 			setIsSubmitting(true);
 			setBusyLabel(label ?? null);
 			return operation()
 				.catch(() => setError(networkError))
 				.finally(() => {
-					setIsSubmitting(false);
-					setBusyLabel(null);
+					pendingRuns.current -= 1;
+					if (pendingRuns.current === 0) {
+						setIsSubmitting(false);
+						setBusyLabel(null);
+					}
 				});
 		},
 		[],

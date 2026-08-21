@@ -81,4 +81,71 @@ describe("useSubmission", () => {
 		await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
 		expect(screen.getByText("idle")).toBeTruthy();
 	});
+
+	it("stays busy until every in-flight operation finishes", async () => {
+		let releaseFirst: () => void = () => {};
+		const firstGate = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		let releaseSecond: () => void = () => {};
+		const secondGate = new Promise<void>((resolve) => {
+			releaseSecond = resolve;
+		});
+
+		render(<DoubleHarness firstGate={firstGate} secondGate={secondGate} />);
+		fireEvent.click(screen.getByRole("button", { name: "First" }));
+		fireEvent.click(screen.getByRole("button", { name: "Second" }));
+		expect(screen.getByText("busy")).toBeTruthy();
+
+		releaseFirst();
+		await waitFor(() => expect(screen.getByText("busy")).toBeTruthy());
+		expect(screen.getByText("Second…")).toBeTruthy();
+
+		releaseSecond();
+		await waitFor(() => expect(screen.getByText("idle")).toBeTruthy());
+	});
 });
+
+function DoubleHarness({
+	firstGate,
+	secondGate,
+}: {
+	firstGate: Promise<unknown>;
+	secondGate: Promise<unknown>;
+}) {
+	const { isSubmitting, busyLabel, run } = useSubmission();
+	return (
+		<div>
+			<button
+				type="button"
+				onClick={() =>
+					void run(
+						"First failed.",
+						async () => {
+							await firstGate;
+						},
+						"First…",
+					)
+				}
+			>
+				First
+			</button>
+			<button
+				type="button"
+				onClick={() =>
+					void run(
+						"Second failed.",
+						async () => {
+							await secondGate;
+						},
+						"Second…",
+					)
+				}
+			>
+				Second
+			</button>
+			<span>{isSubmitting ? "busy" : "idle"}</span>
+			<span>{busyLabel ?? "no-label"}</span>
+		</div>
+	);
+}

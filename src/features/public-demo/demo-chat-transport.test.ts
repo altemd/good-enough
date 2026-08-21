@@ -98,20 +98,15 @@ describe("demo chat transport", () => {
 		});
 
 		await expect(result).rejects.toMatchObject({
-			kind: "capacity",
 			message: "The model is currently busy. Try again shortly.",
 		});
 		await expect(result).rejects.not.toThrow("private-upstream-error");
 	});
 
 	it.each([
-		[401, "authentication", "The demo credential is invalid or has expired."],
-		[
-			503,
-			"connection",
-			"The local model is temporarily unavailable. Try again.",
-		],
-	] as const)("maps HTTP %s to a fixed sanitized failure", async (status, kind, message) => {
+		[401, "The demo credential is invalid or has expired."],
+		[503, "The local model is temporarily unavailable. Try again."],
+	] as const)("maps HTTP %s to a fixed sanitized failure", async (status, message) => {
 		const fetcher = vi.fn(
 			async () => new Response("private-error-detail", { status }),
 		) as unknown as typeof fetch;
@@ -125,7 +120,7 @@ describe("demo chat transport", () => {
 				onDelta: vi.fn(),
 				fetcher,
 			}),
-		).rejects.toMatchObject({ kind, message });
+		).rejects.toMatchObject({ message });
 	});
 
 	it("rejects an oversized incomplete event", async () => {

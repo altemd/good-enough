@@ -48,7 +48,7 @@ describe("OpenAI model discovery", () => {
 		const oversized = discoverOpenAiModelIds(API_KEY, {
 			fetcher: oversizedFetcher,
 		});
-		await expect(oversized).rejects.toMatchObject({ kind: "protocol" });
+		await expect(oversized).rejects.toBeInstanceOf(OpenAiModelDiscoveryError);
 		await expect(oversized).rejects.not.toThrow(privateSentinel);
 
 		const malformed = discoverOpenAiModelIds(API_KEY, {
@@ -56,10 +56,10 @@ describe("OpenAI model discovery", () => {
 				jsonResponse({ data: [] }),
 			) as unknown as typeof fetch,
 		});
-		await expect(malformed).rejects.toMatchObject({ kind: "configuration" });
+		await expect(malformed).rejects.toBeInstanceOf(OpenAiModelDiscoveryError);
 	});
 
-	it("maps authentication and connection failures to stable error kinds", async () => {
+	it("maps authentication and connection failures to a sanitized error", async () => {
 		await expect(
 			discoverOpenAiModelIds(API_KEY, {
 				fetcher: vi.fn(
@@ -69,7 +69,7 @@ describe("OpenAI model discovery", () => {
 						}),
 				) as unknown as typeof fetch,
 			}),
-		).rejects.toEqual(new OpenAiModelDiscoveryError("authentication"));
+		).rejects.toEqual(new OpenAiModelDiscoveryError());
 
 		await expect(
 			discoverOpenAiModelIds(API_KEY, {
@@ -77,7 +77,7 @@ describe("OpenAI model discovery", () => {
 					throw new Error("private-network-detail");
 				}) as unknown as typeof fetch,
 			}),
-		).rejects.toEqual(new OpenAiModelDiscoveryError("connection"));
+		).rejects.toEqual(new OpenAiModelDiscoveryError());
 	});
 
 	it("preserves cancellation", async () => {

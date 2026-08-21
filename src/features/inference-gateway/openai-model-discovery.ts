@@ -4,19 +4,10 @@ const MAX_RESPONSE_BYTES = 64 * 1024;
 const MAX_MODEL_ID_LENGTH = 256;
 const MAX_MODELS = 100;
 
-export type OpenAiModelDiscoveryFailureKind =
-	| "authentication"
-	| "configuration"
-	| "connection"
-	| "protocol";
-
 export class OpenAiModelDiscoveryError extends Error {
-	readonly kind: OpenAiModelDiscoveryFailureKind;
-
-	constructor(kind: OpenAiModelDiscoveryFailureKind) {
+	constructor() {
 		super("Model discovery failed.");
 		this.name = "OpenAiModelDiscoveryError";
-		this.kind = kind;
 	}
 }
 
@@ -42,17 +33,17 @@ export async function discoverOpenAiModelIds(
 		});
 	} catch (error) {
 		if (isAbortError(error)) throw error;
-		throw new OpenAiModelDiscoveryError("connection");
+		throw new OpenAiModelDiscoveryError();
 	}
 
 	if (!response.ok) {
 		if (response.status === 401) {
-			throw new OpenAiModelDiscoveryError("authentication");
+			throw new OpenAiModelDiscoveryError();
 		}
 		if (response.status >= 500) {
-			throw new OpenAiModelDiscoveryError("connection");
+			throw new OpenAiModelDiscoveryError();
 		}
-		throw new OpenAiModelDiscoveryError("protocol");
+		throw new OpenAiModelDiscoveryError();
 	}
 
 	const body = await readBoundedText(response);
@@ -60,10 +51,10 @@ export async function discoverOpenAiModelIds(
 	try {
 		parsed = JSON.parse(body);
 	} catch {
-		throw new OpenAiModelDiscoveryError("protocol");
+		throw new OpenAiModelDiscoveryError();
 	}
 	if (!isRecord(parsed) || !Array.isArray(parsed.data)) {
-		throw new OpenAiModelDiscoveryError("protocol");
+		throw new OpenAiModelDiscoveryError();
 	}
 
 	const modelIds: string[] = [];
@@ -83,7 +74,7 @@ export async function discoverOpenAiModelIds(
 		if (modelIds.length === MAX_MODELS) break;
 	}
 	if (modelIds.length === 0) {
-		throw new OpenAiModelDiscoveryError("configuration");
+		throw new OpenAiModelDiscoveryError();
 	}
 	return modelIds;
 }
@@ -99,7 +90,7 @@ async function readBoundedText(response: Response) {
 			if (done) break;
 			length += value.byteLength;
 			if (length > MAX_RESPONSE_BYTES) {
-				throw new OpenAiModelDiscoveryError("protocol");
+				throw new OpenAiModelDiscoveryError();
 			}
 			chunks.push(value);
 		}

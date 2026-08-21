@@ -13,20 +13,10 @@ export interface DemoChatDelta {
 	reasoning?: string;
 }
 
-export type DemoChatFailureKind =
-	| "authentication"
-	| "capacity"
-	| "configuration"
-	| "connection"
-	| "protocol";
-
 export class DemoChatError extends Error {
-	readonly kind: DemoChatFailureKind;
-
-	constructor(kind: DemoChatFailureKind, message: string) {
+	constructor(message: string) {
 		super(message);
 		this.name = "DemoChatError";
-		this.kind = kind;
 	}
 }
 
@@ -113,10 +103,7 @@ function processCompleteEvents(
 function processEvent(event: string, onDelta: (delta: DemoChatDelta) => void) {
 	const lines = event.split(/\r?\n/);
 	if (lines.some((line) => line.trim() === "event: error")) {
-		throw new DemoChatError(
-			"connection",
-			"The model stream ended unexpectedly. Try again.",
-		);
+		throw new DemoChatError("The model stream ended unexpectedly. Try again.");
 	}
 	const data = lines
 		.filter((line) => line.startsWith("data:"))
@@ -159,7 +146,6 @@ async function performFetch(
 	} catch (error) {
 		if (isAbortError(error)) throw error;
 		throw new DemoChatError(
-			"connection",
 			"The demo service could not be reached. Try again.",
 		);
 	}
@@ -168,20 +154,13 @@ async function performFetch(
 function ensureSuccessfulResponse(response: Response) {
 	if (response.ok) return;
 	if (response.status === 401) {
-		throw new DemoChatError(
-			"authentication",
-			"The demo credential is invalid or has expired.",
-		);
+		throw new DemoChatError("The demo credential is invalid or has expired.");
 	}
 	if (response.status === 429) {
-		throw new DemoChatError(
-			"capacity",
-			"The model is currently busy. Try again shortly.",
-		);
+		throw new DemoChatError("The model is currently busy. Try again shortly.");
 	}
 	if (response.status >= 500) {
 		throw new DemoChatError(
-			"connection",
 			"The local model is temporarily unavailable. Try again.",
 		);
 	}
@@ -215,7 +194,6 @@ function encodedLength(value: string) {
 
 function protocolError() {
 	return new DemoChatError(
-		"protocol",
 		"The model returned an unsupported response. Try again.",
 	);
 }
